@@ -1,0 +1,2262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V.I.G. · Valoración Integral Geriátrica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  :root{
+    --ink:#0F1B2D;
+    --ink-soft:#516078;
+    --teal:#0EA394;
+    --teal-deep:#087367;
+    --teal-glow:#5EEAD4;
+    --violet:#6D5CE7;
+    --violet-soft:#EFECFD;
+    --bg:#F1F5F7;
+    --card:#FFFFFF;
+    --line:#E5EAEE;
+    --coral:#FF6B4A;
+    --coral-soft:#FFE9E2;
+    --amber:#F0A93B;
+    --amber-soft:#FDF1DC;
+    --green:#22A97A;
+    --green-soft:#E3F6ED;
+    --mono:'IBM Plex Mono', monospace;
+    --display:'Fraunces', serif;
+    --body:'Inter', sans-serif;
+    --ease:cubic-bezier(.22,1,.36,1);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:var(--body);background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  a{color:inherit;}
+  ::selection{background:var(--teal-glow);color:var(--ink);}
+  ::-webkit-scrollbar{width:9px;height:9px;}
+  ::-webkit-scrollbar-thumb{background:#C9D3DB;border-radius:20px;}
+  nav.sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);}
+
+  /* ---------- LAYOUT ---------- */
+  #app{display:flex;min-height:100vh;}
+  nav.sidebar{
+    width:258px;flex-shrink:0;color:#fff;
+    background:linear-gradient(190deg,#0F1B2D 0%,#132540 55%,#0F1B2D 100%);
+    display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;overflow-x:hidden;
+    z-index:10;
+  }
+  nav.sidebar::before{
+    content:'';position:absolute;top:-80px;right:-90px;width:260px;height:260px;border-radius:50%;
+    background:radial-gradient(circle,rgba(94,234,212,.28) 0%,rgba(94,234,212,0) 70%);pointer-events:none;
+  }
+  nav.sidebar::after{
+    content:'';position:absolute;bottom:-100px;left:-90px;width:240px;height:240px;border-radius:50%;
+    background:radial-gradient(circle,rgba(109,92,231,.22) 0%,rgba(109,92,231,0) 70%);pointer-events:none;
+  }
+  nav.sidebar .brand{padding:28px 22px 16px;border-bottom:1px solid rgba(255,255,255,.1);position:relative;}
+  nav.sidebar .brand .tag{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--teal-glow);text-transform:uppercase;}
+  nav.sidebar .brand h1{font-family:var(--display);font-size:28px;font-weight:600;margin:6px 0 12px;line-height:1.1;
+    background:linear-gradient(100deg,#fff 30%,var(--teal-glow) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .progress-track{height:6px;border-radius:6px;background:rgba(255,255,255,.12);overflow:hidden;}
+  .progress-fill{height:100%;border-radius:6px;width:0%;background:linear-gradient(90deg,var(--teal) 0%,var(--teal-glow) 100%);transition:width .5s var(--ease);}
+  .progress-label{font-family:var(--mono);font-size:10.5px;color:#93A3BC;margin-top:6px;letter-spacing:.04em;}
+
+  nav.sidebar .steps{list-style:none;margin:0;padding:14px 10px 20px;flex:1;position:relative;}
+  nav.sidebar .steps li{margin-bottom:3px;}
+  nav.sidebar button.navbtn{
+    width:100%;text-align:left;background:none;border:none;color:#B9C6D8;
+    padding:10px 12px;border-radius:10px;font-size:13.5px;font-family:var(--body);
+    display:flex;align-items:center;gap:11px;cursor:pointer;transition:background .18s var(--ease),color .18s,transform .18s;
+  }
+  nav.sidebar button.navbtn:hover{background:rgba(255,255,255,.07);color:#fff;transform:translateX(2px);}
+  nav.sidebar button.navbtn.active{background:linear-gradient(100deg,var(--teal) 0%,var(--teal-deep) 100%);color:#fff;font-weight:600;box-shadow:0 4px 14px rgba(14,163,148,.35);}
+  nav.sidebar button.navbtn .num{
+    font-family:var(--mono);font-size:11px;width:22px;height:22px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.1);flex-shrink:0;transition:background .2s,transform .3s var(--ease);
+  }
+  nav.sidebar button.navbtn.active .num{background:rgba(255,255,255,.25);}
+  nav.sidebar button.navbtn.done .num{background:var(--teal-glow);color:#0B3B34;transform:scale(1.05);}
+  nav.sidebar button.navbtn.done:not(.active) .num svg{display:none;}
+  nav.sidebar button.navbtn.done:not(.active) .num::after{content:'✓';font-weight:800;font-size:12px;}
+  nav.sidebar .footer-note{padding:14px 22px 20px;font-size:10.5px;color:#7C8CA4;border-top:1px solid rgba(255,255,255,.1);position:relative;line-height:1.5;}
+
+  main{flex:1;min-width:0;}
+  header.topbar{
+    background:rgba(255,255,255,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+    padding:14px 34px;display:flex;justify-content:space-between;align-items:center;
+    position:sticky;top:0;z-index:5;
+  }
+  header.topbar .pname{font-weight:700;font-size:15px;}
+  header.topbar .pmeta{font-family:var(--mono);font-size:12px;color:var(--ink-soft);}
+  header.topbar .flags{display:flex;gap:8px;}
+  .pill{font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:20px;background:#EDF1F2;color:var(--ink-soft);transition:transform .2s;}
+  .pill.warn{background:var(--coral-soft);color:#C4451F;}
+  .pill.ok{background:var(--green-soft);color:var(--teal-deep);}
+
+  .section{display:none;padding:36px 40px 90px;max-width:920px;}
+  .section.active{display:block;animation:fadein .45s var(--ease);}
+  @keyframes fadein{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+  @keyframes popin{from{opacity:0;transform:scale(.96) translateY(6px);}to{opacity:1;transform:none;}}
+  @keyframes resultIn{from{opacity:0;transform:translateY(-6px) scale(.98);}to{opacity:1;transform:none;}}
+
+  .section.active .card{animation:popin .5s var(--ease) both;}
+  .section.active .card:nth-child(1){animation-delay:.02s;}
+  .section.active .card:nth-child(2){animation-delay:.08s;}
+  .section.active .card:nth-child(3){animation-delay:.14s;}
+  .section.active .card:nth-child(4){animation-delay:.2s;}
+  .section.active .card:nth-child(5){animation-delay:.26s;}
+
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal);margin:0 0 6px;display:flex;align-items:center;gap:8px;}
+  .eyebrow::before{content:'';width:18px;height:2px;background:var(--teal);border-radius:2px;}
+  h2.title{font-family:var(--display);font-size:33px;font-weight:600;margin:0 0 6px;color:var(--ink);}
+  p.lede{color:var(--ink-soft);margin:0 0 28px;max-width:640px;line-height:1.55;}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:20px;
+    box-shadow:0 1px 2px rgba(15,27,45,.04);transition:box-shadow .25s var(--ease),transform .25s var(--ease);
+    page-break-inside:avoid;break-inside:avoid;}
+  .card:hover{box-shadow:0 10px 28px rgba(15,27,45,.07);transform:translateY(-1px);}
+  .card h3{font-size:16px;margin:0 0 16px;font-weight:700;display:flex;align-items:center;gap:8px;}
+  .anexo-img-wrap{page-break-inside:avoid;break-inside:avoid;text-align:center;}
+  .anexo-img{max-width:100%;max-height:820px;width:auto;height:auto;object-fit:contain;border-radius:10px;border:1px solid var(--line);display:inline-block;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+
+  label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:5px;}
+  input,select,textarea{
+    width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;
+    font-family:var(--body);font-size:14px;background:#FCFDFD;color:var(--ink);
+    transition:border-color .18s,box-shadow .18s;
+  }
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 4px rgba(14,163,148,.13);}
+  .field{margin-bottom:14px;}
+  textarea{resize:vertical;min-height:60px;}
+  .field.computed input{background:var(--green-soft);color:var(--teal-deep);font-weight:700;border-color:var(--teal-glow);cursor:default;}
+  .field .field-hint{font-size:11px;color:var(--ink-soft);margin-top:4px;font-weight:400;}
+  .subcard{border-top:1px dashed var(--line);margin-top:16px;padding-top:16px;}
+  .subcard:first-of-type{border-top:none;margin-top:0;padding-top:0;}
+  .subcard h4{margin:0 0 12px;font-size:13px;font-weight:700;color:var(--teal-deep);text-transform:uppercase;letter-spacing:.04em;font-family:var(--mono);}
+  .card h3 .hnum{font-family:var(--mono);font-size:11px;font-weight:700;color:#fff;background:var(--teal);
+    width:20px;height:20px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+  #cuidadorFields{transition:opacity .2s var(--ease);}
+  #cuidadorFields.disabled-block{opacity:.45;pointer-events:none;}
+
+  button.primary{
+    background:linear-gradient(100deg,var(--teal) 0%,var(--teal-deep) 100%);color:#fff;border:none;padding:12px 22px;border-radius:10px;
+    font-weight:700;font-size:14px;cursor:pointer;font-family:var(--body);
+    box-shadow:0 4px 14px rgba(14,163,148,.3);transition:transform .15s var(--ease),box-shadow .15s;
+  }
+  button.primary:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(14,163,148,.4);}
+  button.primary:active{transform:translateY(0) scale(.98);}
+  button.ghost{background:#fff;border:1.5px solid var(--line);padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;color:var(--ink-soft);font-family:var(--body);transition:all .18s var(--ease);}
+  button.ghost:hover{border-color:var(--teal);color:var(--teal-deep);background:var(--green-soft);transform:translateY(-1px);}
+  button.ghost:active{transform:translateY(0) scale(.98);}
+
+  .result{
+    margin-top:6px;border-radius:12px;padding:16px 18px;background:var(--green-soft);
+    border-left:4px solid var(--teal);font-size:14px;line-height:1.55;
+    animation:resultIn .35s var(--ease);
+  }
+  .result.risk{background:var(--coral-soft);border-left-color:var(--coral);}
+  .result.mid{background:var(--amber-soft);border-left-color:var(--amber);}
+  .result.good{background:var(--green-soft);border-left-color:var(--green);}
+  .result .big{font-family:var(--mono);font-size:27px;font-weight:600;display:block;margin-bottom:4px;color:var(--ink);}
+  .result .tag{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:12px;background:rgba(15,27,45,.06);display:inline-block;}
+
+  .cite{font-size:11.5px;color:#8A97A8;margin-top:10px;font-style:italic;}
+
+  .scale-block{border-top:1px solid var(--line);padding-top:18px;margin-top:18px;}
+  .scale-block:first-child{border-top:none;margin-top:0;padding-top:0;}
+  .scale-block h4{margin:0 0 3px;font-size:15px;color:var(--ink);}
+  .scale-block .sub{font-size:12px;color:var(--ink-soft);margin-bottom:12px;}
+  .scale-item{display:grid;grid-template-columns:1fr 200px;gap:14px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line);}
+  .scale-item:last-of-type{border-bottom:none;}
+  .scale-item span.itxt{font-size:13.5px;}
+
+  table.report{width:100%;border-collapse:collapse;font-size:13.5px;}
+  table.report th,table.report td{text-align:left;padding:10px 10px;border-bottom:1px solid var(--line);}
+  table.report th{color:var(--ink-soft);font-weight:600;width:46%;}
+  table.report tr:hover td, table.report tr:hover th{background:#FAFCFD;}
+  table.escalas-ref th{width:auto;color:var(--ink);background:#FAFCFD;}
+  table.escalas-ref td:first-child{font-weight:600;}
+
+  .gauge-wrap{display:flex;align-items:center;gap:22px;flex-wrap:wrap;}
+
+  /* ---------- MOBILE: bottom app-bar navigation ---------- */
+  @media(max-width:820px){
+    #app{flex-direction:column;}
+    nav.sidebar{
+      width:100%;height:auto;position:fixed;bottom:0;left:0;top:auto;flex-direction:row;
+      padding:0;z-index:50;box-shadow:0 -6px 20px rgba(0,0,0,.25);
+    }
+    nav.sidebar::before,nav.sidebar::after{display:none;}
+    nav.sidebar .brand,nav.sidebar .footer-note{display:none;}
+    nav.sidebar .steps{display:flex;flex-direction:row;overflow-x:auto;padding:8px 8px calc(8px + env(safe-area-inset-bottom));gap:2px;width:100%;-webkit-overflow-scrolling:touch;}
+    nav.sidebar .steps li{margin:0;flex-shrink:0;}
+    nav.sidebar button.navbtn{flex-direction:column;gap:3px;padding:7px 12px;border-radius:12px;font-size:10px;white-space:nowrap;}
+    nav.sidebar button.navbtn span.label{display:block;max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    nav.sidebar button.navbtn:hover{transform:none;}
+    main{padding-bottom:78px;}
+    header.topbar{padding:12px 18px;flex-wrap:wrap;gap:8px;}
+    .section{padding:22px 18px 40px;}
+    h2.title{font-size:26px;}
+    .grid2,.grid3{grid-template-columns:1fr;}
+    .scale-item{grid-template-columns:1fr;gap:6px;}
+    .scale-item select,.scale-item input{width:100%;}
+  }
+
+  @media print{
+    nav.sidebar, header.topbar, .noprint{display:none !important;}
+    .section{display:block !important;padding:0;max-width:100%;}
+    body{background:#fff;}
+    .card{break-inside:avoid;border-color:#ccc;box-shadow:none;transform:none;}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important;transition-duration:.001ms !important;}
+  }
+
+  /* ---------- HOME / DASHBOARD ---------- */
+  #dashboardScreen{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;
+    background:linear-gradient(190deg,#0F1B2D 0%,#132540 55%,#0F1B2D 100%);padding:60px 24px;position:relative;overflow:hidden;}
+  #dashboardScreen::before{content:'';position:absolute;top:-120px;right:-120px;width:420px;height:420px;border-radius:50%;
+    background:radial-gradient(circle,rgba(94,234,212,.22) 0%,rgba(94,234,212,0) 70%);pointer-events:none;}
+  #dashboardScreen::after{content:'';position:absolute;bottom:-140px;left:-120px;width:420px;height:420px;border-radius:50%;
+    background:radial-gradient(circle,rgba(109,92,231,.20) 0%,rgba(109,92,231,0) 70%);pointer-events:none;}
+  .dash-inner{position:relative;z-index:1;width:100%;max-width:960px;text-align:center;}
+  .dash-logo{width:64px;height:64px;border-radius:18px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,var(--teal) 0%,var(--violet) 100%);color:#fff;font-family:var(--mono);font-weight:700;
+    font-size:16px;letter-spacing:.03em;box-shadow:0 10px 30px rgba(14,163,148,.35);}
+  #dashboardScreen .eyebrow{justify-content:center;color:var(--teal-glow);}
+  #dashboardScreen .eyebrow::before{background:var(--teal-glow);}
+  .dash-title{font-family:var(--display);font-weight:600;font-size:40px;line-height:1.15;margin:6px 0 10px;
+    background:linear-gradient(100deg,#fff 30%,var(--teal-glow) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .dash-sub{color:#B9C6D8;font-size:15px;max-width:520px;margin:0 auto 40px;line-height:1.55;}
+  .dash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;text-align:left;}
+  .dash-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:22px 20px;
+    cursor:pointer;color:#fff;font-family:var(--body);transition:transform .2s var(--ease),background .2s,border-color .2s;
+    display:flex;flex-direction:column;gap:8px;backdrop-filter:blur(6px);}
+  .dash-card:hover{transform:translateY(-3px);background:rgba(255,255,255,.09);border-color:rgba(94,234,212,.4);}
+  .dash-card .dash-icon{font-size:24px;line-height:1;}
+  .dash-card .dash-card-title{font-weight:700;font-size:15px;}
+  .dash-card .dash-card-desc{font-size:12.5px;color:#9FB0C6;line-height:1.5;}
+  .dash-card.primary{background:linear-gradient(100deg,var(--teal) 0%,var(--teal-deep) 100%);border-color:transparent;
+    box-shadow:0 10px 26px rgba(14,163,148,.35);}
+  .dash-card.primary .dash-card-desc{color:rgba(255,255,255,.85);}
+  .dash-panel{margin-top:34px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:16px;
+    padding:20px 22px;text-align:left;color:#fff;}
+  .dash-panel h3{margin:0 0 14px;font-size:15px;font-family:var(--body);}
+  .dash-patient-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px dashed rgba(255,255,255,.14);font-size:13px;gap:10px;}
+  .dash-patient-row:last-child{border-bottom:none;}
+  .dash-patient-row .dp-name{font-weight:600;}
+  .dash-patient-row .dp-meta{color:#9FB0C6;font-family:var(--mono);font-size:11.5px;}
+  .dash-empty{color:#9FB0C6;font-size:13px;padding:6px 0;}
+  .dash-back{margin-top:36px;}
+  .btn-home{background:none;border:1.5px solid var(--line);color:var(--ink-soft);padding:8px 14px;border-radius:9px;
+    font-size:12.5px;font-weight:600;cursor:pointer;font-family:var(--body);display:flex;align-items:center;gap:6px;transition:all .18s var(--ease);}
+  .btn-home:hover{border-color:var(--teal);color:var(--teal-deep);background:var(--green-soft);}
+  @media(max-width:820px){
+    .dash-grid{grid-template-columns:1fr;}
+    .dash-title{font-size:30px;}
+    #dashboardScreen{padding:40px 18px 100px;}
+  }
+
+  /* ---------- MODULO: PACIENTES REGISTRADOS ---------- */
+  .pac-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;}
+  .pac-toolbar input[type="text"]{max-width:260px;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:#fff;}
+  .pac-toolbar input[type="text"]::placeholder{color:#8A97AA;}
+  .pac-toolbar select{max-width:210px;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:#fff;}
+  .pac-count{font-family:var(--mono);font-size:11.5px;color:#9FB0C6;margin-left:auto;}
+  table.pac-table{width:100%;border-collapse:collapse;font-size:13px;color:#fff;}
+  table.pac-table th{text-align:left;padding:9px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#9FB0C6;border-bottom:1px solid rgba(255,255,255,.14);font-weight:600;}
+  table.pac-table td{padding:11px 10px;border-bottom:1px dashed rgba(255,255,255,.12);vertical-align:middle;}
+  table.pac-table tr:last-child td{border-bottom:none;}
+  table.pac-table tr:hover td{background:rgba(255,255,255,.03);}
+  .pac-actions{display:flex;gap:4px;flex-wrap:wrap;}
+  .pac-actions button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#fff;
+    width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:13.5px;display:flex;align-items:center;justify-content:center;transition:all .15s var(--ease);}
+  .pac-actions button:hover{background:var(--teal);border-color:var(--teal);transform:translateY(-1px);}
+  .pac-actions button.danger:hover{background:var(--coral);border-color:var(--coral);}
+  .pac-actions button:disabled{opacity:.35;cursor:not-allowed;}
+  .pac-actions button:disabled:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);transform:none;}
+
+  /* ---------- EXPEDIENTE CLÍNICO (vista de solo lectura) ---------- */
+  #expedienteScreen{display:none;min-height:100vh;background:var(--bg);}
+  #expedienteScreen header.topbar{padding:14px 34px;}
+  #expedienteScreen .exp-body{padding:30px 40px 90px;max-width:920px;margin:0 auto;}
+  #expedienteScreen .exp-actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px;}
+  @media(max-width:820px){
+    #expedienteScreen .exp-body{padding:20px 18px 60px;}
+    #expedienteScreen header.topbar{padding:12px 18px;flex-wrap:wrap;gap:8px;}
+    .pac-toolbar{flex-direction:column;align-items:stretch;}
+    .pac-toolbar .pac-count{margin-left:0;}
+    table.pac-table, table.pac-table thead, table.pac-table tbody, table.pac-table th, table.pac-table td, table.pac-table tr{display:block;}
+    table.pac-table thead{display:none;}
+    table.pac-table tr{border-bottom:1px solid rgba(255,255,255,.14);padding:10px 0;margin-bottom:6px;}
+    table.pac-table td{border-bottom:none;padding:3px 0;}
+    table.pac-table td::before{content:attr(data-label);display:block;font-family:var(--mono);font-size:10px;color:#9FB0C6;text-transform:uppercase;}
+  }
+</style>
+</head>
+<body>
+
+<div id="dashboardScreen">
+  <div class="dash-inner">
+    <div class="dash-logo">VIG</div>
+    <h1 class="dash-title">Valoración Integral Geriátrica (V.I.G.)</h1>
+    <p class="dash-sub">Sistema de Evaluación Funcional para Fisioterapia — registra pacientes, aplica escalas geriátricas validadas y genera un informe clínico profesional en PDF.</p>
+
+    <div class="dash-grid">
+      <button class="dash-card primary" onclick="dashNuevoPaciente()">
+        <span class="dash-icon">➕</span>
+        <span class="dash-card-title">Nuevo Paciente</span>
+        <span class="dash-card-desc">Inicia el registro y la valoración de un nuevo adulto mayor.</span>
+      </button>
+      <button class="dash-card" onclick="dashPacientes()">
+        <span class="dash-icon">👥</span>
+        <span class="dash-card-title">Pacientes Registrados</span>
+        <span class="dash-card-desc">Consulta el historial de pacientes registrados en este dispositivo.</span>
+      </button>
+      <button class="dash-card" onclick="dashEvaluaciones()">
+        <span class="dash-icon">📋</span>
+        <span class="dash-card-title">Evaluaciones</span>
+        <span class="dash-card-desc">Escalas y test geriátricos: cognición, ánimo, marcha, fuerza y más.</span>
+      </button>
+      <button class="dash-card" onclick="dashResultados()">
+        <span class="dash-icon">📊</span>
+        <span class="dash-card-title">Resultados</span>
+        <span class="dash-card-desc">Revisa el informe final y exporta el PDF clínico.</span>
+      </button>
+      <button class="dash-card" onclick="dashConfiguracion()">
+        <span class="dash-icon">⚙</span>
+        <span class="dash-card-title">Configuración</span>
+        <span class="dash-card-desc">Preferencias de la aplicación y gestión de datos locales.</span>
+      </button>
+    </div>
+
+    <div class="dash-panel" id="dashPanel" style="display:none;"></div>
+  </div>
+</div>
+
+<div id="expedienteScreen">
+  <header class="topbar">
+    <div style="display:flex;align-items:center;gap:14px;">
+      <button class="btn-home noprint" onclick="cerrarExpediente()">🏠 Inicio</button>
+      <div>
+        <div class="pname" id="expTopName">—</div>
+        <div class="pmeta" id="expTopMeta">— · — · —</div>
+      </div>
+    </div>
+    <div class="flags" id="expTopFlags"></div>
+  </header>
+  <div class="exp-body">
+    <div class="eyebrow">Expediente clínico · solo lectura</div>
+    <h2 class="title">Expediente del paciente</h2>
+    <p class="lede">Historia clínica, escalas aplicadas, resultados, interpretaciones, conclusiones y recomendaciones del paciente.</p>
+    <div class="exp-actions">
+      <button class="primary" id="expBtnEditar" onclick="editarPacienteAccion(expedienteActualId)">✏ Editar</button>
+      <button class="ghost" id="expBtnContinuar" onclick="continuarPacienteAccion(expedienteActualId)">▶ Continuar evaluación</button>
+      <button class="ghost" onclick="pdfPacienteAccion(expedienteActualId)">📄 Generar PDF</button>
+      <button class="ghost" onclick="cerrarExpediente()">← Volver</button>
+    </div>
+    <div id="expedienteContent"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+
+  <nav class="sidebar">
+    <div class="brand">
+      <h1>V.I.G.</h1>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">0 / 9 módulos completos</div>
+    </div>
+    <ul class="steps" id="navList"></ul>
+    <div class="footer-note">Valoración Integral Geriátrica<br>Herramienta de apoyo clínico — no reemplaza el juicio profesional.</div>
+  </nav>
+
+  <main>
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <button class="btn-home noprint" onclick="goDashboard()">🏠 Inicio</button>
+        <div>
+          <div class="pname" id="topName">Paciente sin registrar</div>
+          <div class="pmeta" id="topMeta">— · — · —</div>
+        </div>
+      </div>
+      <div class="flags" id="topFlags"></div>
+    </header>
+
+    <div id="sections">
+
+    <!-- ============ 1. REGISTRO ============ -->
+    <section class="section active" id="sec-registro" data-num="1">
+      <div class="eyebrow">01 · Historia clínica</div>
+      <h2 class="title">Registro Integral del Paciente</h2>
+      <p class="lede">Datos base del adulto mayor. Esta información alimenta automáticamente los cálculos del resto de módulos.</p>
+
+      <div class="card">
+        <h3><span class="hnum">1</span> Datos del evaluador</h3>
+        <div class="grid3">
+          <div class="field"><label>Nombre del fisioterapeuta</label><input id="r_eval_nombre" placeholder="Ej. Lcda. Ana Torres"></div>
+          <div class="field"><label>Institución o centro de atención (opcional)</label><input id="r_eval_institucion" placeholder="Ej. Clínica de Rehabilitación Integral"></div>
+          <div class="field"><label>Fecha de evaluación</label><input id="r_fecha" type="date"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3><span class="hnum">2</span> Datos del paciente</h3>
+        <div class="grid3">
+          <div class="field"><label>Código del paciente</label><input id="r_codigo" placeholder="Ej. VIG-0001"></div>
+          <div class="field"><label>Nombre completo</label><input id="r_nombre" placeholder="Ej. María Pérez"></div>
+          <div class="field"><label>Edad (años)</label><input id="r_edad" type="number" min="1" placeholder="72"></div>
+        </div>
+        <div class="grid3">
+          <div class="field"><label>Sexo</label>
+            <select id="r_sexo"><option value="F">Femenino</option><option value="M">Masculino</option></select>
+          </div>
+          <div class="field"><label>Fecha de nacimiento</label><input id="r_fnac" type="date"></div>
+          <div class="field"><label>Número de cédula</label><input id="r_cedula" placeholder="Ej. 0102030405"></div>
+        </div>
+        <div class="grid3">
+          <div class="field"><label>Estado civil</label>
+            <select id="r_estado_civil">
+              <option value="">Selecciona...</option>
+              <option>Soltero/a</option>
+              <option>Casado/a</option>
+              <option>Unión libre</option>
+              <option>Divorciado/a</option>
+              <option>Viudo/a</option>
+              <option>Otro</option>
+            </select>
+          </div>
+          <div class="field"><label>Ocupación</label><input id="r_ocupacion" placeholder="Ej. Jubilado/a, comerciante..."></div>
+          <div class="field"><label>Teléfono</label><input id="r_telefono" type="tel" placeholder="Ej. 099 999 9999"></div>
+        </div>
+        <div class="field"><label>Dirección</label><input id="r_direccion" placeholder="Ej. Av. Siempre Viva 123, Guayaquil"></div>
+      </div>
+
+      <div class="card">
+        <h3><span class="hnum">3</span> Datos del cuidador</h3>
+        <div class="field" style="max-width:280px;">
+          <label>¿Requiere cuidador?</label>
+          <select id="r_requiere_cuidador" onchange="toggleCuidadorFields()">
+            <option value="No">No</option>
+            <option value="Sí">Sí</option>
+          </select>
+        </div>
+        <div class="grid3" id="cuidadorFields">
+          <div class="field"><label>Nombre del cuidador</label><input id="r_cuidador_nombre" placeholder="Nombre completo"></div>
+          <div class="field"><label>Parentesco</label><input id="r_cuidador_parentesco" placeholder="Ej. Hijo/a, cónyuge, personal contratado"></div>
+          <div class="field"><label>Teléfono</label><input id="r_cuidador_telefono" type="tel" placeholder="Ej. 099 999 9999"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3><span class="hnum">4</span> Datos antropométricos</h3>
+        <div class="grid3">
+          <div class="field"><label>Peso (kg)</label><input id="r_peso" type="number" step="0.1" placeholder="65" oninput="actualizarIMCAuto()"></div>
+          <div class="field"><label>Talla (cm)</label><input id="r_talla" type="number" step="0.1" placeholder="158" oninput="actualizarIMCAuto()"></div>
+          <div class="field computed"><label>IMC (calculado automáticamente)</label><input id="r_imc_auto" readonly placeholder="—">
+            <div class="field-hint" id="r_imc_auto_cat"></div>
+          </div>
+        </div>
+        <div class="grid3">
+          <div class="field"><label>Circunferencia de pantorrilla (cm)</label><input id="r_circ_pantorrilla" type="number" step="0.1" placeholder="Ej. 31"></div>
+          <div class="field"><label>Circunferencia braquial (cm)</label><input id="r_circ_braquial" type="number" step="0.1" placeholder="Ej. 24"></div>
+          <div class="field"><label>Peso habitual (kg)</label><input id="r_peso_habitual" type="number" step="0.1" placeholder="Ej. 68"></div>
+        </div>
+        <div class="grid3">
+          <div class="field"><label>Peso ideal (kg)</label><input id="r_peso_ideal" type="number" step="0.1" placeholder="Ej. 62"></div>
+          <div class="field"><label>Pérdida de peso reciente</label>
+            <select id="r_perdida_peso">
+              <option value="No">No</option>
+              <option value="Sí, involuntaria">Sí, involuntaria</option>
+              <option value="Sí, voluntaria">Sí, voluntaria</option>
+            </select>
+          </div>
+          <div class="field"><label>Detalle (kg y período)</label><input id="r_perdida_peso_detalle" placeholder="Ej. 3 kg en 2 meses"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3><span class="hnum">5</span> Diagnóstico médico</h3>
+        <div class="field"><label>Diagnóstico médico</label><textarea id="r_diagnostico_medico" placeholder="Diagnóstico médico emitido por el especialista tratante..."></textarea></div>
+      </div>
+
+      <div class="card">
+        <h3><span class="hnum">6</span> Motivo de consulta</h3>
+        <div class="field"><label>Motivo de consulta</label><textarea id="r_motivo" placeholder="Ej. Post-caída, dificultad para caminar, dolor..."></textarea></div>
+      </div>
+
+      <div class="card">
+        <h3><span class="hnum">7</span> Diagnóstico fisioterapéutico</h3>
+        <div class="field"><label>Diagnóstico fisioterapéutico</label><textarea id="r_diagnostico" placeholder="Ej. Gonartrosis bilateral, sarcopenia sospechada..."></textarea></div>
+      </div>
+
+      <div class="card">
+        <h3><span class="hnum">8</span> Antecedentes</h3>
+        <div class="subcard">
+          <h4>Antecedentes personales</h4>
+          <div class="field"><textarea id="r_antecedentes_personales" placeholder="Hábitos, actividad física previa, estilo de vida relevante..."></textarea></div>
+        </div>
+        <div class="subcard">
+          <h4>Antecedentes patológicos</h4>
+          <div class="field"><textarea id="r_antecedentes" placeholder="HTA, DM2, EPOC, caídas previas..."></textarea></div>
+        </div>
+        <div class="grid2">
+          <div class="subcard">
+            <h4>Antecedentes patológicos familiares</h4>
+            <div class="field"><textarea id="r_antecedentes_familiares" placeholder="Antecedentes relevantes en familiares directos..."></textarea></div>
+          </div>
+          <div class="subcard">
+            <h4>Antecedentes patológicos quirúrgicos</h4>
+            <div class="field"><textarea id="r_antecedentes_quirurgicos" placeholder="Cirugías previas relevantes..."></textarea></div>
+          </div>
+        </div>
+        <div class="subcard">
+          <h4>Medicación actual</h4>
+          <div class="field"><textarea id="r_medicacion" placeholder="Fármacos relevantes (polifarmacia)"></textarea></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Signos vitales y datos funcionales de base</h3>
+        <div class="grid3">
+          <div class="field"><label>Presión arterial (mmHg)</label><input id="r_pa" placeholder="130/80"></div>
+          <div class="field"><label>Frecuencia cardíaca (lpm)</label><input id="r_fc" type="number" placeholder="76"></div>
+          <div class="field"><label>Saturación O₂ (%)</label><input id="r_spo2" type="number" placeholder="96"></div>
+        </div>
+        <div class="field" style="margin-top:6px;">
+          <label style="display:flex;align-items:center;gap:8px;font-weight:500;">
+            <input type="checkbox" id="r_consentimiento" style="width:auto;"> El paciente (o representante) otorgó consentimiento informado para la valoración y uso de datos con fines académicos.
+          </label>
+        </div>
+      </div>
+
+      <button class="primary" onclick="guardarRegistro()">Guardar datos del paciente</button>
+      <div id="r_result"></div>
+      <p class="cite">Interpretación clínica: este registro integra los datos clínicos, antropométricos y antecedentes que fundamentan la valoración fisioterapéutica integral del paciente.</p>
+    </section>
+
+    <!-- ============ 2. ESCALAS ============ -->
+    <section class="section" id="sec-escalas" data-num="2">
+      <div class="eyebrow">02 · Tamizaje geriátrico</div>
+      <h2 class="title">Módulo de Escalas y Test Geriátricos</h2>
+      <p class="lede">Escalas validadas que cubren funcionalidad básica, instrumental, marcha/equilibrio, cognición, ánimo, nutrición y fragilidad.</p>
+      <div class="card" id="escalasContainer"></div>
+      <p class="cite">Interpretación clínica: estas escalas estandarizadas permiten evaluar de forma objetiva la funcionalidad, cognición, ánimo, marcha y riesgo de caídas del adulto mayor.</p>
+    </section>
+
+    <!-- ============ 3. NUTRICION ============ -->
+    <section class="section" id="sec-nutricion" data-num="3">
+      <div class="eyebrow">03 · Estado nutricional</div>
+      <h2 class="title">Cálculo Nutricional Automatizado</h2>
+      <p class="lede">Proteína diaria, requerimiento calórico, IMC, riesgo nutricional (MNA-SF) y masa muscular estimada.</p>
+
+      <div class="card">
+        <h3>IMC e Índice de Masa Corporal</h3>
+        <button class="ghost" onclick="calcIMC()">Calcular IMC</button>
+        <div id="imc_result"></div>
+        <p class="cite">Interpretación clínica: los indicadores nutricionales permiten detectar riesgo de desnutrición o sobrepeso y apoyar la planificación fisioterapéutica.</p>
+      </div>
+
+      <div class="card">
+        <h3>Requerimiento proteico y calórico</h3>
+        <div class="field"><label>Condición clínica</label>
+          <select id="n_condicion">
+            <option value="1.0">Adulto mayor sano (1.0 g/kg/día)</option>
+            <option value="1.2">Enfermedad aguda/crónica (1.2 g/kg/día)</option>
+            <option value="1.5">Desnutrición / lesión por presión / rehabilitación intensiva (1.5 g/kg/día)</option>
+          </select>
+        </div>
+        <div class="field"><label>Nivel de actividad para requerimiento calórico</label>
+          <select id="n_actividad">
+            <option value="27.5">Encamado / muy sedentario (25–30 kcal/kg/día)</option>
+            <option value="32.5">Ambulatorio, actividad ligera (30–35 kcal/kg/día)</option>
+            <option value="37.5">Activo / en rehabilitación intensa (35–40 kcal/kg/día)</option>
+          </select>
+        </div>
+        <button class="ghost" onclick="calcNutricion()">Calcular</button>
+        <div id="n_result"></div>
+        <p class="cite">Interpretación clínica: el requerimiento proteico y calórico orienta la prescripción nutricional para preservar masa muscular y favorecer la recuperación funcional.</p>
+      </div>
+
+      <div class="card">
+        <h3>Riesgo nutricional — MNA-SF (Mini Nutritional Assessment, forma corta)</h3>
+        <div id="mnaContainer"></div>
+        <button class="ghost" onclick="calcMNA()">Calcular riesgo nutricional</button>
+        <div id="mna_result"></div>
+        <p class="cite">Interpretación clínica: el tamizaje nutricional permite identificar de forma temprana el riesgo de malnutrición y ajustar el plan de intervención.</p>
+      </div>
+
+      <div class="card">
+        <h3>Masa muscular estimada</h3>
+        <button class="ghost" onclick="calcMasaMuscular()">Estimar masa muscular</button>
+        <div id="mm_result"></div>
+        <p class="cite">Interpretación clínica: la estimación de masa muscular apoya la detección de sarcopenia y el seguimiento de la condición física del paciente.</p>
+      </div>
+    </section>
+
+    <!-- ============ 4. METABOLISMO ============ -->
+    <section class="section" id="sec-metabolismo" data-num="4">
+      <div class="eyebrow">04 · Gasto energético</div>
+      <h2 class="title">Metabolismo Basal y Gasto Energético</h2>
+      <p class="lede">Tasa metabólica basal (Mifflin-St Jeor) y Gasto Energético Total según nivel de actividad.</p>
+      <div class="card">
+        <div class="field"><label>Factor de actividad física</label>
+          <select id="m_factor">
+            <option value="1.2">Sedentario (1.2)</option>
+            <option value="1.375">Actividad ligera (1.375)</option>
+            <option value="1.55">Actividad moderada (1.55)</option>
+            <option value="1.725">Activo (1.725)</option>
+            <option value="1.9">Muy activo (1.9)</option>
+          </select>
+        </div>
+        <button class="ghost" onclick="calcMetabolismo()">Calcular BMR y GET</button>
+        <div id="m_result"></div>
+        <p class="cite">Interpretación clínica: el metabolismo basal representa el gasto energético mínimo necesario para mantener las funciones vitales.</p>
+      </div>
+    </section>
+
+    <!-- ============ 5. HIDRATACION ============ -->
+    <section class="section" id="sec-hidratacion" data-num="5">
+      <div class="eyebrow">05 · Balance hídrico</div>
+      <h2 class="title">Hidratación y Balance Hídrico</h2>
+      <p class="lede">Requerimiento diario de agua ajustado a la fisiología renal del adulto mayor.</p>
+      <div class="card">
+        <div class="field"><label>Perfil del paciente</label>
+          <select id="h_perfil">
+            <option value="25">Frágil / comorbilidad renal-cardíaca (25 ml/kg/día)</option>
+            <option value="27.5">Adulto mayor promedio (27.5 ml/kg/día)</option>
+            <option value="30">Adulto mayor activo y sano (30 ml/kg/día)</option>
+          </select>
+        </div>
+        <button class="ghost" onclick="calcHidratacion()">Calcular requerimiento hídrico</button>
+        <div id="h_result"></div>
+        <p class="cite">Interpretación clínica: una adecuada hidratación contribuye al mantenimiento de la función física y al equilibrio fisiológico del adulto mayor.</p>
+      </div>
+    </section>
+
+    <!-- ============ 6. METS Y BALANCE ============ -->
+    <section class="section" id="sec-mets" data-num="6">
+      <div class="eyebrow">06 · Capacidad funcional</div>
+      <h2 class="title">Sistema Energético y METs</h2>
+      <p class="lede">Equivalente metabólico de la actividad prescrita y estimación de gasto calórico por sesión.</p>
+      <div class="card">
+        <div class="grid2">
+          <div class="field"><label>Actividad física</label>
+            <select id="mets_actividad">
+              <option value="1.5">Sedestación / actividades de mesa (1.5 METs)</option>
+              <option value="2.0">Marcha lenta domiciliaria (2.0 METs)</option>
+              <option value="2.5">Ejercicios terapéuticos suaves, sentado (2.5 METs)</option>
+              <option value="3.0">Marcha normal en llano (3.0 METs)</option>
+              <option value="3.5">Bicicleta estática, baja resistencia (3.5 METs)</option>
+              <option value="4.0">Marcha rápida / gimnasia geriátrica (4.0 METs)</option>
+              <option value="5.0">Subir escaleras a paso lento (5.0 METs)</option>
+            </select>
+          </div>
+          <div class="field"><label>Duración de la sesión (minutos)</label><input id="mets_min" type="number" value="30"></div>
+        </div>
+        <button class="ghost" onclick="calcMETs()">Calcular</button>
+        <div id="mets_result"></div>
+        <p class="cite">Interpretación clínica: el nivel de METs permite estimar la capacidad funcional del adulto mayor para realizar actividades físicas cotidianas.</p>
+      </div>
+
+      <div class="card">
+        <h3>Consumo Calórico y Balance Energético</h3>
+        <div class="field"><label>Ingesta calórica diaria estimada (kcal)</label><input id="bal_ingesta" type="number" placeholder="1800"></div>
+        <button class="ghost" onclick="calcBalance()">Calcular balance energético</button>
+        <div id="bal_result"></div>
+        <p class="cite">Interpretación clínica: el balance energético ayuda a identificar déficit o superávit calórico y orientar la intervención nutricional.</p>
+      </div>
+    </section>
+
+    <!-- ============ 7. DINAMOMETRIA ============ -->
+    <section class="section" id="sec-dinamometria" data-num="7">
+      <div class="eyebrow">07 · Fuerza muscular</div>
+      <h2 class="title">Fuerza de Agarre (Dinamometría)</h2>
+      <p class="lede">Fuerza prensil como marcador de sarcopenia y fragilidad.</p>
+      <div class="card">
+        <div class="field"><label>Fuerza de agarre — promedio de 3 mediciones (kg)</label><input id="d_fuerza" type="number" step="0.1" placeholder="Ej. 22.5"></div>
+        <button class="ghost" onclick="calcDinamometria()">Calcular y clasificar</button>
+        <div id="d_result"></div>
+        <p class="cite">Interpretación clínica: la fuerza de prensión manual es un indicador del estado funcional y del riesgo de dinapenia.</p>
+      </div>
+    </section>
+
+    <!-- ============ 8. FRAGILIDAD ============ -->
+    <section class="section" id="sec-fragilidad" data-num="8">
+      <div class="eyebrow">08 · Síndrome geriátrico</div>
+      <h2 class="title">Clasificación de Fragilidad</h2>
+      <p class="lede">Fenotipo de fragilidad de Fried — 5 criterios clínicos.</p>
+      <div class="card">
+        <div class="scale-item"><span class="itxt">Pérdida de peso involuntaria &gt; 4.5 kg (o &gt;5%) en el último año</span>
+          <select id="f_peso"><option value="0">No</option><option value="1">Sí</option></select></div>
+        <div class="scale-item"><span class="itxt">Agotamiento autorreportado (se siente cansado gran parte del tiempo)</span>
+          <select id="f_agotamiento"><option value="0">No</option><option value="1">Sí</option></select></div>
+        <div class="scale-item"><span class="itxt">Debilidad muscular (según fuerza de agarre del módulo 7)</span>
+          <select id="f_debilidad"><option value="0">No cumple (fuerza normal)</option><option value="1">Cumple (dinapenia)</option></select></div>
+        <div class="scale-item"><span class="itxt">Velocidad de marcha lenta (&lt; 0.8 m/s en 4 metros)</span>
+          <select id="f_marcha"><option value="0">No</option><option value="1">Sí</option></select></div>
+        <div class="scale-item"><span class="itxt">Baja actividad física semanal autorreportada</span>
+          <select id="f_actividad"><option value="0">No</option><option value="1">Sí</option></select></div>
+        <div style="margin-top:16px;">
+          <button class="ghost" onclick="calcFragilidad()">Clasificar fragilidad</button>
+        </div>
+        <div id="f_result"></div>
+        <p class="cite">Interpretación clínica: la clasificación de fragilidad orienta el riesgo funcional y ayuda a planificar intervenciones preventivas.</p>
+      </div>
+    </section>
+
+    <!-- ============ 9. INFORME ============ -->
+    <section class="section" id="sec-informe" data-num="9">
+      <div class="eyebrow">09 · Síntesis clínica</div>
+      <h2 class="title">Informe Final Automatizado</h2>
+      <p class="lede">Resumen ejecutivo de la V.I.G., generado a partir de todos los módulos completados. Imprime o exporta como PDF desde el navegador.</p>
+      <div class="card noprint" style="margin-bottom:18px;">
+        <h3>Anexos del informe</h3>
+        <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;">Sube aquí la fotografía de la valoración; se incrustará directamente en el informe y en el PDF exportado.</p>
+        <div>
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Fotografía de la valoración</label>
+          <input type="file" accept="image/*" id="a_foto" onchange="handleAnexoUpload('fotoValoracion', this)">
+          <div id="a_foto_preview" style="margin-top:8px;"></div>
+        </div>
+      </div>
+      <div class="noprint" style="margin-bottom:18px;display:flex;gap:10px;">
+        <button class="primary" onclick="generarInforme()">Generar / actualizar informe</button>
+        <button class="ghost" onclick="descargarPDF()" id="btnPdf">⬇ Descargar informe en PDF</button>
+        <button class="ghost" onclick="window.print()" title="Solo funciona en navegador de escritorio/Chrome, no dentro del APK">Imprimir (navegador)</button>
+      </div>
+      <div id="pdfStatus" style="font-size:12.5px;color:var(--ink-soft);margin-bottom:14px;"></div>
+      <div id="informeContainer"></div>
+    </section>
+
+    </div>
+  </main>
+
+</div>
+<script>
+/* ============================================================
+   ESTADO GLOBAL
+   ============================================================ */
+const state = {
+  paciente:null, escalas:{}, nutricion:{}, metabolismo:{}, hidratacion:{},
+  mets:{}, balance:{}, dinamometria:{}, fragilidad:{},
+  anexos:{ fotoValoracion:null },
+  editingId:null
+};
+
+/* ============================================================
+   REFERENCIAS CIENTÍFICAS
+   Estas citas bibliográficas ya no se muestran en la interfaz
+   (se reemplazaron por interpretaciones clínicas breves en cada
+   módulo). Se conservan aquí para su eventual reutilización en
+   una futura sección de "Referencias" / "Acerca de".
+   ============================================================ */
+const REFERENCIAS_CIENTIFICAS = {
+  registro: 'Fundamento: la Valoración Geriátrica Integral estructurada mejora la detección de problemas funcionales y guía la toma de decisiones terapéuticas (Rubenstein, 1991; Ellis et al., 2017, Cochrane Review).',
+  escalas: 'Escalas seleccionadas por su uso estándar en Valoración Geriátrica Integral: Folstein et al. (1975); Yesavage et al. (1983); Mahoney & Barthel (1965); Lawton & Brody (1969); Podsiadlo & Richardson (1991); Berg et al. (1992); Tinetti (1986); Guralnik et al. (1994); Rikli & Jones (2013).',
+  imc: 'Clasificación OMS adaptada a geriatría (Corrada et al., 2006 — mortalidad mínima en adultos mayores con IMC 23–29).',
+  proteinaCalorica: 'Recomendaciones proteicas y calóricas según guía ESPEN de nutrición geriátrica (Volkert et al., 2019).',
+  mnaSf: 'Rubenstein et al. (2001), validación del MNA-SF como tamizaje nutricional geriátrico.',
+  masaMuscular: 'Ecuación antropométrica de Lee et al. (2000) para estimación de masa músculo-esquelética; índices de sarcopenia según EWGSOP2 (Cruz-Jentoft et al., 2019).',
+  metabolismo: 'Ecuación de Mifflin-St Jeor (1990), considerada más precisa que Harris-Benedict en población adulta mayor (Frankenfield et al., 2005).',
+  hidratacion: 'Ferry (2005) y guía ESPEN de hidratación geriátrica: 25–30 ml/kg/día, menor a la fórmula estándar de 35 ml/kg por reducción de la capacidad de concentración renal.',
+  mets: 'Valores MET tomados del Compendio de Actividades Físicas de Ainsworth et al. (2011); umbral de 4 METs como referencia de capacidad funcional (Fletcher et al., 2013, AHA).',
+  balance: 'Balance energético = ingesta − gasto (Hall & Guo, 2017); relevante para prevención de sarcopenia y sobrepeso en el adulto mayor.',
+  dinamometria: 'Puntos de corte de dinapenia según consenso EWGSOP2: <27 kg hombres, <16 kg mujeres (Cruz-Jentoft et al., 2019).',
+  fragilidad: 'Fenotipo de fragilidad validado por Fried et al. (2001, Cardiovascular Health Study).'
+};
+let expedienteActualId = null;
+let pacSearchTerm = '';
+let pacSortDir = 'desc'; // desc = más reciente primero
+
+/* ============================================================
+   DASHBOARD / PANTALLA PRINCIPAL
+   ============================================================ */
+function goDashboard(){
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('expedienteScreen').style.display = 'none';
+  document.getElementById('dashboardScreen').style.display = 'flex';
+  document.getElementById('dashPanel').style.display = 'none';
+}
+function enterWorkspace(sectionId){
+  document.getElementById('dashboardScreen').style.display = 'none';
+  document.getElementById('expedienteScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  if(sectionId) showSection(sectionId);
+}
+function limpiarFormularioRegistro(){
+  ['r_eval_nombre','r_eval_institucion',
+   'r_codigo','r_nombre','r_fnac','r_edad','r_cedula','r_ocupacion','r_direccion','r_telefono',
+   'r_cuidador_nombre','r_cuidador_parentesco','r_cuidador_telefono',
+   'r_peso','r_talla','r_circ_pantorrilla','r_circ_braquial','r_peso_habitual','r_peso_ideal','r_perdida_peso_detalle',
+   'r_fecha','r_diagnostico_medico','r_diagnostico',
+   'r_antecedentes_personales','r_antecedentes','r_antecedentes_familiares','r_antecedentes_quirurgicos','r_medicacion','r_motivo',
+   'r_pa','r_fc','r_spo2'].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+  const sexoEl = document.getElementById('r_sexo'); if(sexoEl) sexoEl.value = 'F';
+  const civilEl = document.getElementById('r_estado_civil'); if(civilEl) civilEl.value = '';
+  const cuidadorReq = document.getElementById('r_requiere_cuidador'); if(cuidadorReq) cuidadorReq.value = 'No';
+  const perdidaEl = document.getElementById('r_perdida_peso'); if(perdidaEl) perdidaEl.value = 'No';
+  toggleCuidadorFields();
+  actualizarIMCAuto();
+  const chk = document.getElementById('r_consentimiento'); if(chk) chk.checked = false;
+  document.getElementById('r_result').innerHTML = '';
+}
+// Muestra/oculta los campos del cuidador según si el paciente lo requiere.
+function toggleCuidadorFields(){
+  const req = document.getElementById('r_requiere_cuidador');
+  const wrap = document.getElementById('cuidadorFields');
+  if(!req || !wrap) return;
+  wrap.classList.toggle('disabled-block', req.value !== 'Sí');
+}
+// Calcula y muestra el IMC en tiempo real dentro del Registro Integral (no reemplaza
+// el cálculo del módulo de Nutrición, que sigue funcionando de forma independiente).
+function actualizarIMCAuto(){
+  const pesoEl = document.getElementById('r_peso'), tallaEl = document.getElementById('r_talla');
+  const out = document.getElementById('r_imc_auto'), cat = document.getElementById('r_imc_auto_cat');
+  if(!out) return;
+  const peso = parseFloat(pesoEl && pesoEl.value), talla = parseFloat(tallaEl && tallaEl.value);
+  if(!peso || !talla){ out.value=''; if(cat) cat.textContent=''; return; }
+  const tallaM = talla/100;
+  const imc = peso/(tallaM*tallaM);
+  let texto;
+  if(imc<18.5) texto='Bajo peso'; else if(imc<25) texto='Normal'; else if(imc<30) texto='Sobrepeso'; else texto='Obesidad';
+  out.value = imc.toFixed(1)+' kg/m²';
+  if(cat) cat.textContent = texto;
+}
+function dashNuevoPaciente(){
+  state.paciente = null;
+  state.escalas = {}; state.nutricion = {}; state.metabolismo = {}; state.hidratacion = {};
+  state.mets = {}; state.balance = {}; state.dinamometria = {}; state.fragilidad = {};
+  state.anexos = { fotoValoracion:null };
+  state.editingId = null;
+  escalaActual = null;
+  doneModules.clear();
+  limpiarFormularioRegistro();
+  const fotoPrev = document.getElementById('a_foto_preview'); if(fotoPrev) fotoPrev.innerHTML='';
+  const fotoInput = document.getElementById('a_foto'); if(fotoInput) fotoInput.value='';
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('done'));
+  updateProgress();
+  document.getElementById('topName').textContent = 'Paciente sin registrar';
+  document.getElementById('topMeta').textContent = '— · — · —';
+  renderScales();
+  enterWorkspace('registro');
+}
+function dashPacientes(){
+  pacSearchTerm=''; pacSortDir='desc';
+  renderDashPacientes();
+  const panel = document.getElementById('dashPanel');
+  panel.style.display = 'block';
+  panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function pacientesFiltrados(){
+  const term = pacSearchTerm.trim().toLowerCase();
+  let lista = listarPacientesCompletos();
+  if(term){
+    lista = lista.filter(r=>{
+      const cod = (r.paciente.codigo||'').toLowerCase();
+      const nom = (r.paciente.nombre||'').toLowerCase();
+      return cod.includes(term) || nom.includes(term);
+    });
+  }
+  lista.sort((a,b)=>{
+    const fa = a.paciente.fecha || ''; const fb = b.paciente.fecha || '';
+    let cmp;
+    if(fa && fb) cmp = fa.localeCompare(fb);
+    else cmp = (a.updatedAt||0) - (b.updatedAt||0);
+    return pacSortDir==='asc' ? cmp : -cmp;
+  });
+  return lista;
+}
+function filtrarPacientes(v){ pacSearchTerm = v; renderDashPacientes(); }
+function ordenarPacientes(v){ pacSortDir = v; renderDashPacientes(); }
+function renderDashPacientes(){
+  const panel = document.getElementById('dashPanel');
+  const lista = pacientesFiltrados();
+  const totalCompletables = NAV_ITEMS.length - 1;
+  const filas = lista.map(r=>{
+    const p = r.paciente;
+    const done = (r.doneModules||[]).length;
+    const estado = r.legacy ? 'Registro antiguo' : (done>=totalCompletables ? 'Completa' : 'En proceso');
+    const estadoCls = r.legacy ? '' : (done>=totalCompletables ? 'ok' : 'warn');
+    return `<tr>
+      <td data-label="Código">${p.codigo && p.codigo!=='—' ? p.codigo : '—'}</td>
+      <td data-label="Nombre">${p.nombre || '—'}</td>
+      <td data-label="Edad">${p.edad || '—'}</td>
+      <td data-label="Sexo">${p.sexo==='F'?'Femenino':(p.sexo==='M'?'Masculino':'—')}</td>
+      <td data-label="Fecha de evaluación">${p.fecha || '—'}</td>
+      <td data-label="Estado">${estadoCls?`<span class="pill ${estadoCls}">${estado}</span>`:`<span class="pill">${estado}</span>`}</td>
+      <td data-label="Acciones"><div class="pac-actions">
+        <button title="Ver expediente" onclick="verPacienteAccion('${r._id}')">👁</button>
+        <button title="Editar" ${r.legacy?'disabled':''} onclick="editarPacienteAccion('${r._id}')">✏</button>
+        <button title="Continuar evaluación" ${r.legacy||done>=totalCompletables?'disabled':''} onclick="continuarPacienteAccion('${r._id}')">▶</button>
+        <button title="Generar PDF" ${r.legacy?'disabled':''} onclick="pdfPacienteAccion('${r._id}')">📄</button>
+        <button title="Eliminar" class="danger" onclick="eliminarPacienteAccion('${r._id}')">🗑</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+  const tabla = lista.length ? `
+    <table class="pac-table">
+      <thead><tr><th>Código</th><th>Nombre</th><th>Edad</th><th>Sexo</th><th>Fecha eval.</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody>${filas}</tbody>
+    </table>` : `<div class="dash-empty">${pacSearchTerm? 'No se encontraron pacientes con ese código o nombre.' : 'Aún no hay pacientes registrados en este dispositivo. Usa "Nuevo Paciente" para comenzar.'}</div>`;
+  panel.innerHTML = `
+    <h3>👥 Pacientes registrados</h3>
+    <div class="pac-toolbar">
+      <input type="text" placeholder="Buscar por código o nombre..." value="${pacSearchTerm}" oninput="filtrarPacientes(this.value)">
+      <select onchange="ordenarPacientes(this.value)">
+        <option value="desc" ${pacSortDir==='desc'?'selected':''}>Fecha ↓ más reciente</option>
+        <option value="asc" ${pacSortDir==='asc'?'selected':''}>Fecha ↑ más antigua</option>
+      </select>
+      <span class="pac-count">${lista.length} paciente${lista.length===1?'':'s'}</span>
+    </div>
+    ${tabla}`;
+}
+function dashEvaluaciones(){
+  enterWorkspace('escalas');
+}
+function dashResultados(){
+  enterWorkspace('informe');
+}
+function dashConfiguracion(){
+  const panel = document.getElementById('dashPanel');
+  panel.style.display = 'block';
+  const total = listarPacientesCompletos().length;
+  panel.innerHTML = `
+    <h3>⚙ Configuración</h3>
+    <div style="font-size:13px;color:#B9C6D8;line-height:1.7;">
+      V.I.G. · Sistema de Evaluación Funcional para Fisioterapia<br>
+      Los expedientes de pacientes (registro, historia clínica, escalas y resultados) se guardan en este dispositivo (localStorage). Actualmente hay ${total} paciente${total===1?'':'s'} guardado${total===1?'':'s'}.
+    </div>
+    <div style="margin-top:14px;">
+      <button class="ghost" onclick="borrarHistorialPacientes()">Borrar todos los pacientes guardados en este dispositivo</button>
+    </div>`;
+  panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function borrarHistorialPacientes(){
+  if(!confirm('Esto eliminará permanentemente todos los pacientes guardados en este dispositivo. ¿Continuar?')) return;
+  try{ localStorage.removeItem(PACIENTES_KEY); }catch(e){}
+  dashConfiguracion();
+}
+
+/* ============================================================
+   NAVEGACIÓN
+   ============================================================ */
+const ICONS = {
+  registro:'<circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-4.2 3.6-6.4 7-6.4s7 2.2 7 6.4"/>',
+  escalas:'<path d="M4 6h4M4 12h4M4 18h4"/><path d="M11 6h9M11 12h9M11 18h9"/>',
+  nutricion:'<path d="M12 8c-3 0-5 2.4-5 5.6C7 17.2 9.4 20 12 20s5-2.8 5-6.4C17 10.4 15 8 12 8z"/><path d="M12 8c0-2 1.2-3.4 2.6-4"/>',
+  metabolismo:'<path d="M12 3c1 3-2 4-2 7a3 3 0 106 0c0-1-.6-1.6-1-2 1.6.6 3 2.4 3 4.6A5.6 5.6 0 0112 18a5.6 5.6 0 01-5.6-5.6C6.4 8 9 6 12 3z"/>',
+  hidratacion:'<path d="M12 3c3 4 6 7.6 6 11a6 6 0 11-12 0c0-3.4 3-7 6-11z"/>',
+  mets:'<path d="M3 12h4l2-6 4 12 2-6h6"/>',
+  dinamometria:'<circle cx="12" cy="12" r="7.2"/><path d="M9 9.5v5M12 8v8M15 9.5v5"/>',
+  fragilidad:'<path d="M12 3l7 3v6c0 5-3.4 8-7 9-3.6-1-7-4-7-9V6l7-3z"/>',
+  informe:'<path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7M9 8h3"/>'
+};
+const NAV_ITEMS = [
+  {id:'registro', label:'Registro del Paciente'},
+  {id:'escalas', label:'Escalas y Test'},
+  {id:'nutricion', label:'Cálculo Nutricional'},
+  {id:'metabolismo', label:'Metabolismo Basal'},
+  {id:'hidratacion', label:'Hidratación'},
+  {id:'mets', label:'METs y Balance'},
+  {id:'dinamometria', label:'Fuerza de Agarre'},
+  {id:'fragilidad', label:'Fragilidad'},
+  {id:'informe', label:'Informe Final'},
+];
+const doneModules = new Set();
+
+function renderNav(){
+  const ul = document.getElementById('navList');
+  ul.innerHTML = NAV_ITEMS.map((it,i)=>`
+    <li><button class="navbtn ${i===0?'active':''}" id="nav-${it.id}" onclick="showSection('${it.id}')">
+      <span class="num"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[it.id]}</svg><span style="display:none;">${i+1}</span></span>
+      <span class="label">${it.label}</span>
+    </button></li>`).join('');
+}
+function showSection(id){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('nav-'+id).classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(id==='informe') generarInforme();
+}
+function markDone(id){
+  doneModules.add(id);
+  const btn = document.getElementById('nav-'+id);
+  if(btn) btn.classList.add('done');
+  updateProgress();
+}
+function updateProgress(){
+  const total = NAV_ITEMS.length - 1; // informe no cuenta como "completable"
+  const pct = Math.round((doneModules.size/total)*100);
+  document.getElementById('progressFill').style.width = pct+'%';
+  document.getElementById('progressLabel').textContent = `${doneModules.size} / ${total} módulos completos`;
+}
+
+/* ============================================================
+   1. REGISTRO
+   ============================================================ */
+function guardarRegistro(){
+  const peso = parseFloat(document.getElementById('r_peso').value);
+  const talla = parseFloat(document.getElementById('r_talla').value);
+  let imcAuto, imcAutoCat;
+  if(peso && talla){
+    const tallaM = talla/100;
+    imcAuto = peso/(tallaM*tallaM);
+    imcAutoCat = imcAuto<18.5?'Bajo peso':(imcAuto<25?'Normal':(imcAuto<30?'Sobrepeso':'Obesidad'));
+  }
+  const p = {
+    // 1. Datos del evaluador
+    eval_nombre: document.getElementById('r_eval_nombre').value,
+    eval_institucion: document.getElementById('r_eval_institucion').value,
+    fecha: document.getElementById('r_fecha').value,
+    // 2. Datos del paciente
+    codigo: document.getElementById('r_codigo').value || '—',
+    nombre: document.getElementById('r_nombre').value || 'Paciente sin nombre',
+    edad: parseFloat(document.getElementById('r_edad').value),
+    sexo: document.getElementById('r_sexo').value,
+    fnac: document.getElementById('r_fnac').value,
+    cedula: document.getElementById('r_cedula').value,
+    estado_civil: document.getElementById('r_estado_civil').value,
+    ocupacion: document.getElementById('r_ocupacion').value,
+    direccion: document.getElementById('r_direccion').value,
+    telefono: document.getElementById('r_telefono').value,
+    // 3. Datos del cuidador
+    requiere_cuidador: document.getElementById('r_requiere_cuidador').value,
+    cuidador_nombre: document.getElementById('r_cuidador_nombre').value,
+    cuidador_parentesco: document.getElementById('r_cuidador_parentesco').value,
+    cuidador_telefono: document.getElementById('r_cuidador_telefono').value,
+    // 4. Datos antropométricos
+    peso: peso,
+    talla: talla,
+    imc: imcAuto,
+    imcCat: imcAutoCat,
+    circ_pantorrilla: document.getElementById('r_circ_pantorrilla').value,
+    circ_braquial: document.getElementById('r_circ_braquial').value,
+    peso_habitual: document.getElementById('r_peso_habitual').value,
+    peso_ideal: document.getElementById('r_peso_ideal').value,
+    perdida_peso: document.getElementById('r_perdida_peso').value,
+    perdida_peso_detalle: document.getElementById('r_perdida_peso_detalle').value,
+    // 5-7. Diagnósticos y motivo
+    diagnostico_medico: document.getElementById('r_diagnostico_medico').value,
+    motivo: document.getElementById('r_motivo').value,
+    diagnostico: document.getElementById('r_diagnostico').value,
+    // 8. Antecedentes
+    antecedentes_personales: document.getElementById('r_antecedentes_personales').value,
+    antecedentes: document.getElementById('r_antecedentes').value,
+    antecedentes_familiares: document.getElementById('r_antecedentes_familiares').value,
+    antecedentes_quirurgicos: document.getElementById('r_antecedentes_quirurgicos').value,
+    medicacion: document.getElementById('r_medicacion').value,
+    // Signos vitales
+    pa: document.getElementById('r_pa').value,
+    fc: document.getElementById('r_fc').value,
+    spo2: document.getElementById('r_spo2').value,
+    consentimiento: document.getElementById('r_consentimiento').checked
+  };
+  if(!p.edad || !p.peso || !p.talla){
+    document.getElementById('r_result').innerHTML = `<div class="result risk">Completa al menos edad, peso y talla para habilitar los cálculos automáticos.</div>`;
+    return;
+  }
+  state.paciente = p;
+  document.getElementById('r_result').innerHTML = `<div class="result good">Registro guardado. Ya puedes avanzar a los siguientes módulos — los datos antropométricos se usarán automáticamente.</div>`;
+  updateTopbar();
+  markDone('registro');
+  guardarPacienteCompleto();
+}
+function updateTopbar(){
+  const p = state.paciente;
+  if(!p) return;
+  document.getElementById('topName').textContent = p.nombre;
+  document.getElementById('topMeta').textContent = `${p.codigo&&p.codigo!=='—'?p.codigo+' · ':''}${p.edad} años · ${p.sexo==='F'?'Femenino':'Masculino'} · ${p.peso} kg / ${p.talla} cm`;
+}
+
+/* ============================================================
+   GESTIÓN DE PACIENTES (localStorage — expediente completo)
+   Cada registro guarda: datos del paciente/historia clínica,
+   todas las escalas, resultados nutricionales/metabólicos,
+   fuerza/fragilidad, anexos y progreso de módulos completados.
+   ============================================================ */
+const PACIENTES_KEY = 'vig_pacientes';
+
+function leerPacientesRaw(){
+  try{ return JSON.parse(localStorage.getItem(PACIENTES_KEY)||'[]'); }catch(e){ return []; }
+}
+function guardarPacientesRaw(lista){
+  try{ localStorage.setItem(PACIENTES_KEY, JSON.stringify(lista)); }catch(e){ /* localStorage no disponible: se ignora, no afecta la app */ }
+}
+// Normaliza registros antiguos (formato ligero previo: {codigo,nombre,edad,sexo,fecha,ts}) para que
+// sigan siendo compatibles y visibles en el listado, sin romper la aplicación.
+function normalizarRegistro(r){
+  if(r && r.paciente) return r; // ya es un expediente completo
+  return {
+    _id: 'legacy_'+(r.ts||Date.now())+'_'+Math.random().toString(36).slice(2,7),
+    paciente: { codigo:r.codigo, nombre:r.nombre, edad:r.edad, sexo:r.sexo, fecha:r.fecha },
+    escalas:{}, nutricion:{}, metabolismo:{}, hidratacion:{}, mets:{}, balance:{},
+    dinamometria:{}, fragilidad:{}, anexos:{ fotoValoracion:null },
+    doneModules:[], legacy:true,
+    createdAt:r.ts||Date.now(), updatedAt:r.ts||Date.now()
+  };
+}
+function listarPacientesCompletos(){
+  return leerPacientesRaw().map(normalizarRegistro);
+}
+function guardarPacienteCompleto(){
+  const lista = leerPacientesRaw();
+  const codigo = state.paciente.codigo;
+  // Si no estamos editando un expediente ya abierto, pero el código coincide con uno existente,
+  // actualizamos ese mismo paciente en lugar de crear un duplicado.
+  if(!state.editingId && codigo && codigo!=='—'){
+    const existente = lista.find(r=> r.paciente && r.paciente.codigo===codigo);
+    if(existente) state.editingId = existente._id;
+  }
+  const idx = state.editingId ? lista.findIndex(r=>r._id===state.editingId) : -1;
+  const anterior = idx>=0 ? lista[idx] : null;
+  const registro = {
+    _id: state.editingId || ('p_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)),
+    paciente: state.paciente,
+    escalas: state.escalas,
+    nutricion: state.nutricion,
+    metabolismo: state.metabolismo,
+    hidratacion: state.hidratacion,
+    mets: state.mets,
+    balance: state.balance,
+    dinamometria: state.dinamometria,
+    fragilidad: state.fragilidad,
+    anexos: state.anexos,
+    doneModules: Array.from(doneModules),
+    legacy:false,
+    createdAt: anterior ? anterior.createdAt : Date.now(),
+    updatedAt: Date.now()
+  };
+  state.editingId = registro._id;
+  if(idx>=0) lista[idx] = registro; else lista.unshift(registro);
+  guardarPacientesRaw(lista);
+  return registro;
+}
+function obtenerPacientePorId(id){
+  return listarPacientesCompletos().find(r=>r._id===id) || null;
+}
+function eliminarPacienteAccion(id){
+  const rec = obtenerPacientePorId(id);
+  if(!rec) return;
+  if(!confirm(`¿Eliminar al paciente "${rec.paciente.nombre||'sin nombre'}"? Esta acción no se puede deshacer.`)) return;
+  const lista = leerPacientesRaw().filter(r=>{
+    const norm = normalizarRegistro(r);
+    return norm._id !== id;
+  });
+  guardarPacientesRaw(lista);
+  if(state.editingId === id) state.editingId = null;
+  renderDashPacientes();
+}
+// Restaura un expediente completo dentro del estado global y del formulario de registro,
+// y sincroniza el progreso/menú de navegación para reflejar los módulos ya completados.
+function cargarPacienteEnFormulario(id){
+  const rec = obtenerPacientePorId(id);
+  if(!rec) return null;
+  state.paciente = rec.paciente;
+  state.escalas = rec.escalas || {};
+  state.nutricion = rec.nutricion || {};
+  state.metabolismo = rec.metabolismo || {};
+  state.hidratacion = rec.hidratacion || {};
+  state.mets = rec.mets || {};
+  state.balance = rec.balance || {};
+  state.dinamometria = rec.dinamometria || {};
+  state.fragilidad = rec.fragilidad || {};
+  state.anexos = rec.anexos || { fotoValoracion:null };
+  state.editingId = rec._id;
+  escalaActual = null;
+
+  const p = rec.paciente || {};
+  const setVal = (id2,val)=>{ const el=document.getElementById(id2); if(el) el.value = val!=null?val:''; };
+  // 1. Datos del evaluador
+  setVal('r_eval_nombre', p.eval_nombre);
+  setVal('r_eval_institucion', p.eval_institucion);
+  setVal('r_fecha', p.fecha);
+  // 2. Datos del paciente
+  setVal('r_codigo', p.codigo==='—'?'':p.codigo);
+  setVal('r_nombre', p.nombre);
+  setVal('r_edad', p.edad);
+  setVal('r_sexo', p.sexo||'F');
+  setVal('r_fnac', p.fnac);
+  setVal('r_cedula', p.cedula);
+  setVal('r_estado_civil', p.estado_civil);
+  setVal('r_ocupacion', p.ocupacion);
+  setVal('r_direccion', p.direccion);
+  setVal('r_telefono', p.telefono);
+  // 3. Datos del cuidador
+  setVal('r_requiere_cuidador', p.requiere_cuidador||'No');
+  setVal('r_cuidador_nombre', p.cuidador_nombre);
+  setVal('r_cuidador_parentesco', p.cuidador_parentesco);
+  setVal('r_cuidador_telefono', p.cuidador_telefono);
+  toggleCuidadorFields();
+  // 4. Datos antropométricos
+  setVal('r_peso', p.peso);
+  setVal('r_talla', p.talla);
+  actualizarIMCAuto();
+  setVal('r_circ_pantorrilla', p.circ_pantorrilla);
+  setVal('r_circ_braquial', p.circ_braquial);
+  setVal('r_peso_habitual', p.peso_habitual);
+  setVal('r_peso_ideal', p.peso_ideal);
+  setVal('r_perdida_peso', p.perdida_peso||'No');
+  setVal('r_perdida_peso_detalle', p.perdida_peso_detalle);
+  // 5-7. Diagnósticos y motivo
+  setVal('r_diagnostico_medico', p.diagnostico_medico);
+  setVal('r_motivo', p.motivo);
+  setVal('r_diagnostico', p.diagnostico);
+  // 8. Antecedentes
+  setVal('r_antecedentes_personales', p.antecedentes_personales);
+  setVal('r_antecedentes', p.antecedentes);
+  setVal('r_antecedentes_familiares', p.antecedentes_familiares);
+  setVal('r_antecedentes_quirurgicos', p.antecedentes_quirurgicos);
+  setVal('r_medicacion', p.medicacion);
+  // Signos vitales
+  setVal('r_pa', p.pa);
+  setVal('r_fc', p.fc);
+  setVal('r_spo2', p.spo2);
+  const chk = document.getElementById('r_consentimiento'); if(chk) chk.checked = !!p.consentimiento;
+  document.getElementById('r_result').innerHTML = `<div class="result good">Expediente cargado. Los datos existentes se mantienen; guarda de nuevo para actualizar este mismo paciente.</div>`;
+
+  const fotoPrev = document.getElementById('a_foto_preview');
+  if(fotoPrev){
+    const foto = state.anexos && state.anexos.fotoValoracion;
+    fotoPrev.innerHTML = foto ? `<img src="${foto.dataUrl}" style="max-width:100%;max-height:140px;border-radius:8px;border:1px solid var(--line);">` : '';
+  }
+
+  doneModules.clear();
+  (rec.doneModules||[]).forEach(m=>doneModules.add(m));
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('done'));
+  doneModules.forEach(m=>{ const btn=document.getElementById('nav-'+m); if(btn) btn.classList.add('done'); });
+  updateProgress();
+  updateTopbar();
+  restaurarResultadosVisuales();
+  renderScales();
+  renderMNA();
+  return rec;
+}
+// Reconstruye los paneles de resultado ya calculados a partir de los datos guardados,
+// para que al editar/continuar un paciente se vean los cálculos previos sin recalcular.
+function restaurarResultadosVisuales(){
+  const n=state.nutricion, m=state.metabolismo, h=state.hidratacion, met=state.mets,
+        bal=state.balance, d=state.dinamometria, f=state.fragilidad;
+  const put=(id,html)=>{ const el=document.getElementById(id); if(el) el.innerHTML = html; };
+  if(n.imc!=null) put('imc_result', `<div class="result ${n.imcCat==='Normal'?'good':(n.imcCat==='Sobrepeso'?'mid':'risk')}"><span class="big">${n.imc.toFixed(1)} kg/m²</span><span class="tag">${n.imcCat}</span></div>`);
+  if(n.proteina!=null) put('n_result', `<div class="result good"><span class="big">${n.proteina.toFixed(0)} g proteína/día</span><span class="big" style="margin-top:6px;">${(n.calorias||0).toFixed(0)} kcal/día</span><span class="tag">Requerimiento estimado (guardado)</span></div>`);
+  if(n.mna!=null) put('mna_result', `<div class="result ${n.mnaTxt==='Estado nutricional normal'?'good':(n.mnaTxt==='Riesgo de malnutrición'?'mid':'risk')}"><span class="big">${n.mna} / 14</span><span class="tag">${n.mnaTxt}</span></div>`);
+  if(n.smm!=null) put('mm_result', `<div class="result good"><span class="big">${n.smm.toFixed(1)} kg</span><span class="tag">SMI: ${n.smi.toFixed(2)} kg/m²</span></div>`);
+  if(m.bmr!=null) put('m_result', `<div class="result good"><span class="big">TMB: ${m.bmr.toFixed(0)} kcal/día</span><span class="big" style="margin-top:6px;">GET: ${m.get.toFixed(0)} kcal/día</span><span class="tag">Gasto Energético Total (guardado)</span></div>`);
+  if(h.litros!=null) put('h_result', `<div class="result good"><span class="big">${h.litros.toFixed(2)} L / día</span></div>`);
+  if(met.valor!=null) put('mets_result', `<div class="result good"><span class="big">${met.kcal.toFixed(0)} kcal en la sesión</span><span class="tag">${met.valor} METs</span></div>`);
+  if(bal.pct!=null) put('bal_result', `<div class="result ${bal.txt==='Balance energético adecuado'?'good':(bal.txt&&bal.txt.includes('Superávit')?'mid':'risk')}"><span class="big">${bal.pct.toFixed(0)}% del GET</span><span class="tag">${bal.diff>=0?'+':''}${bal.diff.toFixed(0)} kcal/día — ${bal.txt}</span></div>`);
+  if(d.fuerza!=null) put('d_result', `<div class="result ${d.dinapenia?'risk':'good'}"><span class="big">${d.fuerza} kg</span><span class="tag">${d.txt}</span></div>`);
+  if(f.txt!=null) put('f_result', `<div class="result ${f.txt==='Robusto'?'good':(f.txt==='Prefrágil'?'mid':'risk')}"><span class="big">${f.total} / 5 criterios</span><span class="tag">${f.txt} (Fenotipo de Fried)</span></div>`);
+}
+function primeraSeccionIncompleta(){
+  for(const it of NAV_ITEMS){
+    if(it.id==='informe') continue;
+    if(!doneModules.has(it.id)) return it.id;
+  }
+  return 'informe';
+}
+function verPacienteAccion(id){
+  const rec = obtenerPacientePorId(id);
+  if(!rec) return;
+  expedienteActualId = id;
+  renderExpediente(rec);
+  document.getElementById('dashboardScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('expedienteScreen').style.display = 'block';
+  window.scrollTo({top:0});
+}
+function cerrarExpediente(){
+  expedienteActualId = null;
+  goDashboard();
+}
+function editarPacienteAccion(id){
+  if(!id) return;
+  cargarPacienteEnFormulario(id);
+  enterWorkspace('registro');
+}
+function continuarPacienteAccion(id){
+  if(!id) return;
+  cargarPacienteEnFormulario(id);
+  enterWorkspace(primeraSeccionIncompleta());
+}
+function pdfPacienteAccion(id){
+  if(!id) return;
+  cargarPacienteEnFormulario(id);
+  generarInforme();
+  descargarPDF();
+}
+function requierePaciente(){
+  if(!state.paciente){
+    alert('Primero completa y guarda el "Registro del Paciente" (módulo 1) — los cálculos necesitan peso, talla, edad y sexo.');
+    showSection('registro');
+    return false;
+  }
+  return true;
+}
+
+/* ============================================================
+   2. ESCALAS (motor genérico basado en datos)
+   ============================================================ */
+const SCALES = [
+  { id:'mmse', name:'Mini-Mental State Examination (MMSE)', sub:'Tamizaje de estado cognitivo global · máx. 30 puntos',
+    items:[
+      {label:'Orientación en tiempo (año, estación, mes, día, fecha) — puntos correctos', opts:[['0',0],['1',1],['2',2],['3',3],['4',4],['5',5]]},
+      {label:'Orientación en espacio (país, provincia, ciudad, lugar, piso) — puntos correctos', opts:[['0',0],['1',1],['2',2],['3',3],['4',4],['5',5]]},
+      {label:'Fijación / registro (repetir 3 palabras)', opts:[['0',0],['1',1],['2',2],['3',3]]},
+      {label:'Atención y cálculo (restar de 7 en 7 desde 100, o deletrear al revés)', opts:[['0',0],['1',1],['2',2],['3',3],['4',4],['5',5]]},
+      {label:'Recuerdo diferido (recordar las 3 palabras anteriores)', opts:[['0',0],['1',1],['2',2],['3',3]]},
+      {label:'Lenguaje (nombrar objetos, repetir frase, orden de 3 pasos, leer y obedecer, escribir frase)', opts:[['0',0],['1',1],['2',2],['3',3],['4',4],['5',5],['6',6],['7',7],['8',8]]},
+      {label:'Praxis constructiva (copiar dibujo de pentágonos entrelazados)', opts:[['0 - incorrecto',0],['1 - correcto',1]]},
+    ],
+    interpret:(s)=>{
+      if(s>=27) return ['Sin deterioro cognitivo','good'];
+      if(s>=24) return ['Sospecha de deterioro cognitivo','mid'];
+      if(s>=19) return ['Deterioro cognitivo leve','mid'];
+      if(s>=14) return ['Deterioro cognitivo moderado','risk'];
+      return ['Deterioro cognitivo severo','risk'];
+    }, max:30
+  },
+  { id:'barthel', name:'Índice de Barthel', sub:'Actividades básicas de la vida diaria (AVD) · máx. 100 puntos',
+    items:[
+      {label:'Alimentación', opts:[['Dependiente',0],['Necesita ayuda',5],['Independiente',10]]},
+      {label:'Baño / ducha', opts:[['Dependiente',0],['Independiente',5]]},
+      {label:'Vestido', opts:[['Dependiente',0],['Necesita ayuda',5],['Independiente',10]]},
+      {label:'Aseo personal', opts:[['Dependiente',0],['Independiente',5]]},
+      {label:'Deposición (control intestinal)', opts:[['Incontinente',0],['Accidente ocasional',5],['Continente',10]]},
+      {label:'Micción (control urinario)', opts:[['Incontinente',0],['Accidente ocasional',5],['Continente',10]]},
+      {label:'Uso del retrete', opts:[['Dependiente',0],['Necesita ayuda',5],['Independiente',10]]},
+      {label:'Traslado cama-silla', opts:[['Incapaz',0],['Gran ayuda',5],['Ayuda mínima',10],['Independiente',15]]},
+      {label:'Deambulación', opts:[['Inmóvil',0],['Silla de ruedas independiente',5],['Camina con ayuda',10],['Independiente',15]]},
+      {label:'Subir/bajar escaleras', opts:[['Incapaz',0],['Necesita ayuda',5],['Independiente',10]]},
+    ],
+    interpret:(s)=>{
+      if(s<20) return ['Dependencia total','risk'];
+      if(s<=35) return ['Dependencia grave','risk'];
+      if(s<=55) return ['Dependencia moderada','mid'];
+      if(s<100) return ['Dependencia leve','mid'];
+      return ['Independiente','good'];
+    }, max:100
+  },
+  { id:'lawton', name:'Índice de Lawton-Brody', sub:'Actividades instrumentales de la vida diaria (AIVD) · máx. 8 puntos',
+    items:[
+      {label:'Capacidad de usar el teléfono', opts:[['No',0],['Sí',1]]},
+      {label:'Hacer compras', opts:[['No',0],['Sí',1]]},
+      {label:'Preparar la comida', opts:[['No',0],['Sí',1]]},
+      {label:'Cuidado de la casa', opts:[['No',0],['Sí',1]]},
+      {label:'Lavado de ropa', opts:[['No',0],['Sí',1]]},
+      {label:'Uso de medios de transporte', opts:[['No',0],['Sí',1]]},
+      {label:'Responsabilidad sobre su medicación', opts:[['No',0],['Sí',1]]},
+      {label:'Manejo de asuntos económicos', opts:[['No',0],['Sí',1]]},
+    ],
+    interpret:(s)=>{
+      if(s<=1) return ['Dependencia total (AIVD)','risk'];
+      if(s<=4) return ['Dependencia moderada (AIVD)','mid'];
+      if(s<8) return ['Dependencia leve (AIVD)','mid'];
+      return ['Independiente (AIVD)','good'];
+    }, max:8
+  },
+  { id:'tinetti', name:'Escala de Tinetti (POMA)', sub:'Equilibrio y marcha · versión abreviada · máx. 12 puntos',
+    items:[
+      {label:'Equilibrio al sentarse', opts:[['Inestable',0],['Estable',1]]},
+      {label:'Levantarse de la silla', opts:[['Incapaz / gran ayuda',0],['Con ayuda de brazos',1],['Sin ayuda',2]]},
+      {label:'Equilibrio de pie (5 seg)', opts:[['Inestable',0],['Estable con apoyo',1],['Estable sin apoyo',2]]},
+      {label:'Equilibrio con ojos cerrados', opts:[['Inestable',0],['Estable',1]]},
+      {label:'Giro 360°', opts:[['Pasos discontinuos/inestable',0],['Pasos continuos y estable',1]]},
+      {label:'Sentarse', opts:[['Inseguro / se deja caer',0],['Movimiento seguro y controlado',1]]},
+      {label:'Longitud y altura del paso', opts:[['Asimétrico / pies arrastran',0],['Simétrico, pie despega del suelo',1]]},
+      {label:'Simetría y continuidad del paso', opts:[['Alterada',0],['Normal',1]]},
+      {label:'Trayectoria al caminar', opts:[['Desviación marcada',0],['Leve desviación',1],['Línea recta',2]]},
+    ],
+    interpret:(s)=>{
+      if(s<19) return ['Alto riesgo de caídas','risk'];
+      if(s<=24) return ['Riesgo moderado de caídas','mid'];
+      return ['Bajo riesgo de caídas','good'];
+    }, max:12
+  },
+  { id:'tug', name:'Timed Up and Go (TUG)', sub:'Movilidad funcional y riesgo de caída — ingresa el tiempo cronometrado',
+    items:[ {label:'Tiempo en levantarse, caminar 3 m, girar y sentarse (segundos)', opts:null, numeric:true} ],
+    interpret:(s)=>{
+      if(s>=20) return ['Riesgo alto de caídas / requiere ayuda para movilidad','risk'];
+      if(s>=10) return ['Movilidad con independencia parcial, vigilar riesgo','mid'];
+      return ['Movilidad normal, bajo riesgo de caída','good'];
+    }, max:null
+  },
+  { id:'berg', name:'Escala de Equilibrio de Berg', sub:'Equilibrio funcional · 14 ítems, cada uno 0-4 puntos · máx. 56 puntos',
+    items:[
+      {label:'Sedestación a bipedestación', opts:[['0',0],['1',1],['2',2],['3',3],['4',4]]},
+      {label:'Bipedestación sin apoyo', opts:[['0',0],['1',1],['2',2],['3',3],['4',4]]},
+      {label:'Sedestación sin apoyo dorsal (pies apoyados)', opts:[['0',0],['1',1],['2',2],['3',3],['4',4]]},
+      {label:'Bipedestación a sedestación', opts:[['0',0],['1',1],['2',2],['3',3],['4',4]]},
+      {label:'Transferencias (silla a silla)', opts:[['0',0],['1',1],['2',2],['3',3],['4',4]]},
+      {label:'Bipedestación con ojos cerrados', opts:[['0',0],['1',1],['2',2],['3',3],['4',4]]},
+      {label:'Bipedestación con pies juntos', opts:[['0',0],['1',1],['2',2],['3',3],['4',4]]},
+      {label:'Alcance con brazo extendido hacia adelante', opts:[['0',0],['1',1],['2',2],['3',3],['4',4]]},
+      {label:'Recoger un objeto del suelo', opts:[['0',0],['1',1],['2',2],['3',3],['4',4]]},
+      {label:'Girarse para mirar atrás', opts:[['0',0],['1',1],['2',2],['3',3],['4',4]]},
+      {label:'Girar 360°', opts:[['0',0],['1',1],['2',2],['3',3],['4',4]]},
+      {label:'Colocar pie alternado sobre step/banco', opts:[['0',0],['1',1],['2',2],['3',3],['4',4]]},
+      {label:'Bipedestación en tándem (un pie delante del otro)', opts:[['0',0],['1',1],['2',2],['3',3],['4',4]]},
+      {label:'Bipedestación en un solo pie', opts:[['0',0],['1',1],['2',2],['3',3],['4',4]]},
+    ],
+    interpret:(s)=>{
+      if(s<=20) return ['Riesgo alto de caídas — alteración importante del equilibrio','risk'];
+      if(s<=40) return ['Riesgo moderado de caídas','mid'];
+      return ['Riesgo bajo de caídas — equilibrio funcional adecuado','good'];
+    }, max:56
+  },
+  { id:'sppb', name:'Short Physical Performance Battery (SPPB)', sub:'Rendimiento físico breve · máx. 12 puntos',
+    items:[
+      {label:'Equilibrio (pies juntos / semitándem / tándem)', opts:[['0 - incapaz',0],['1',1],['2',2],['3',3],['4 - mantiene 10s en tándem',4]]},
+      {label:'Velocidad de marcha en 4 metros', opts:[['0 - incapaz',0],['1 - lenta (>8.7s)',1],['2 - (6.2–8.7s)',2],['3 - (4.8–6.2s)',3],['4 - rápida (<4.8s)',4]]},
+      {label:'Levantarse de la silla x5 repeticiones', opts:[['0 - incapaz',0],['1 - >16.7s',1],['2 - 13.7–16.6s',2],['3 - 11.2–13.6s',3],['4 - <11.2s',4]]},
+    ],
+    interpret:(s)=>{
+      if(s<=3) return ['Discapacidad física severa','risk'];
+      if(s<=6) return ['Limitación funcional moderada','risk'];
+      if(s<=9) return ['Limitación funcional leve','mid'];
+      return ['Alto rendimiento físico','good'];
+    }, max:12
+  },
+  { id:'chairstand', name:'Chair Stand Test (30 segundos)', sub:'Fuerza funcional de miembros inferiores — repeticiones de sentado a de pie en 30 segundos',
+    items:[ {label:'Número de repeticiones completas en 30 segundos', opts:null, numeric:true} ],
+    interpret:(s)=>{
+      if(s<8) return ['Bajo rendimiento — riesgo de sarcopenia/caídas, referencia orientativa','risk'];
+      if(s<=11) return ['Rendimiento moderado','mid'];
+      return ['Rendimiento adecuado de fuerza en MMII','good'];
+    }, max:null
+  },
+  { id:'gds', name:'Escala de Depresión Geriátrica (GDS-15, Yesavage abreviada)', sub:'Tamizaje de sintomatología depresiva · máx. 15 puntos',
+    items:[
+      {label:'¿Está básicamente satisfecho/a con su vida?', opts:[['Sí (0 pts)',0],['No (1 pt)',1]]},
+      {label:'¿Ha abandonado muchas de sus actividades e intereses?', opts:[['No (0)',0],['Sí (1)',1]]},
+      {label:'¿Siente que su vida está vacía?', opts:[['No (0)',0],['Sí (1)',1]]},
+      {label:'¿Se aburre con frecuencia?', opts:[['No (0)',0],['Sí (1)',1]]},
+      {label:'¿Está de buen ánimo la mayor parte del tiempo?', opts:[['Sí (0)',0],['No (1)',1]]},
+      {label:'¿Teme que algo malo le va a pasar?', opts:[['No (0)',0],['Sí (1)',1]]},
+      {label:'¿Se siente feliz la mayor parte del tiempo?', opts:[['Sí (0)',0],['No (1)',1]]},
+      {label:'¿Se siente a menudo desamparado/a?', opts:[['No (0)',0],['Sí (1)',1]]},
+      {label:'¿Prefiere quedarse en casa antes que salir?', opts:[['No (0)',0],['Sí (1)',1]]},
+      {label:'¿Siente que tiene más problemas de memoria que otros?', opts:[['No (0)',0],['Sí (1)',1]]},
+      {label:'¿Piensa que es maravilloso estar vivo/a?', opts:[['Sí (0)',0],['No (1)',1]]},
+      {label:'¿Se siente inútil tal como está ahora?', opts:[['No (0)',0],['Sí (1)',1]]},
+      {label:'¿Se siente lleno/a de energía?', opts:[['Sí (0)',0],['No (1)',1]]},
+      {label:'¿Siente que su situación es desesperada?', opts:[['No (0)',0],['Sí (1)',1]]},
+      {label:'¿Cree que la mayoría de la gente vive mejor que usted?', opts:[['No (0)',0],['Sí (1)',1]]},
+    ],
+    interpret:(s)=>{
+      if(s<=4) return ['Sin sintomatología depresiva significativa','good'];
+      if(s<=8) return ['Depresión leve — sugerir evaluación por psicología/psiquiatría','mid'];
+      if(s<=11) return ['Depresión moderada — requiere evaluación especializada','risk'];
+      return ['Depresión severa — derivación prioritaria','risk'];
+    }, max:15
+  },
+];
+
+const SCALE_META = {
+  mmse:{area:'Cognición', evalua:'Estado cognitivo'},
+  gds:{area:'Depresión', evalua:'Síntomas depresivos'},
+  barthel:{area:'ABVD', evalua:'Independencia funcional'},
+  lawton:{area:'AIVD', evalua:'Actividades instrumentales'},
+  tug:{area:'Movilidad', evalua:'Movilidad y riesgo de caídas'},
+  berg:{area:'Equilibrio', evalua:'Equilibrio funcional'},
+  tinetti:{area:'Marcha', evalua:'Marcha y equilibrio'},
+  sppb:{area:'Rendimiento físico', evalua:'Función de miembros inferiores'},
+  chairstand:{area:'Fuerza', evalua:'Fuerza funcional de MMII'},
+};
+let escalaActual = null;
+
+function buildScaleForm(sc){
+  const itemsHtml = sc.items.map((it,i)=>{
+    if(it.numeric){
+      return `<div class="scale-item"><span class="itxt">${it.label}</span><input type="number" step="0.1" id="${sc.id}_${i}" style="width:200px;"></div>`;
+    }
+    const opts = it.opts.map(o=>`<option value="${o[1]}">${o[0]}</option>`).join('');
+    return `<div class="scale-item"><span class="itxt">${it.label}</span><select id="${sc.id}_${i}">${opts}</select></div>`;
+  }).join('');
+  return `<div class="scale-block" style="margin-top:20px;border-top:1px solid var(--line);padding-top:18px;">
+    <h4>${sc.name}</h4>
+    <div class="sub">${sc.sub}</div>
+    ${itemsHtml}
+    <div style="margin-top:12px;"><button class="ghost" onclick="calcScale('${sc.id}')">Calcular ${sc.name.split('(')[0].trim()}</button></div>
+    <div id="${sc.id}_result"></div>
+  </div>`;
+}
+
+function renderScales(){
+  const c = document.getElementById('escalasContainer');
+  const refRows = SCALES.map(sc=>{
+    const meta = SCALE_META[sc.id]||{};
+    const done = state.escalas[sc.id];
+    return `<tr><td>${meta.area||''}</td><td>${sc.name.split('(')[0].trim()}${done?' <span class="pill ok">✓ hecho</span>':''}</td><td>${meta.evalua||''}</td></tr>`;
+  }).join('');
+  const selectorOpts = SCALES.map(sc=>
+    `<option value="${sc.id}" ${escalaActual===sc.id?'selected':''}>${state.escalas[sc.id]?'✓ ':''}${sc.name}</option>`
+  ).join('');
+  const sc = escalaActual ? SCALES.find(s=>s.id===escalaActual) : null;
+
+  c.innerHTML = `
+    <table class="report escalas-ref">
+      <tr><th>Área</th><th>Escala / Test</th><th>Evalúa</th></tr>
+      ${refRows}
+      <tr><td>Nutrición</td><td>MNA <span style="color:var(--ink-soft);font-weight:400;">(módulo 3 · Cálculo Nutricional)</span></td><td>Estado nutricional</td></tr>
+      <tr><td>Fragilidad</td><td>Fenotipo de Fried <span style="color:var(--ink-soft);font-weight:400;">(módulo 8 · Fragilidad)</span></td><td>Fragilidad física</td></tr>
+    </table>
+    <div class="noprint" style="margin-top:18px;">
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Selecciona una escala para completarla:</label>
+      <select id="escalaSelector" onchange="seleccionarEscala(this.value)" style="max-width:420px;">
+        <option value="">— Elige una escala —</option>
+        ${selectorOpts}
+      </select>
+    </div>
+    ${sc ? buildScaleForm(sc) : ''}
+  `;
+}
+function seleccionarEscala(id){
+  escalaActual = id || null;
+  renderScales();
+}
+function calcScale(id){
+  const sc = SCALES.find(s=>s.id===id);
+  let total = 0;
+  sc.items.forEach((it,i)=>{
+    const el = document.getElementById(`${id}_${i}`);
+    total += parseFloat(el.value)||0;
+  });
+  const [txt,cls] = sc.interpret(total);
+  state.escalas[id] = {total, txt};
+  markDone('escalas');
+  document.getElementById(id+'_result').innerHTML = `<div class="result ${cls}"><span class="big">${total}${sc.max?(' / '+sc.max):(id==='tug'||id==='chairstand'?'':'')}</span><span class="tag">${txt}</span></div>`;
+  const opt = document.querySelector(`#escalaSelector option[value="${id}"]`);
+  if(opt) opt.textContent = '✓ ' + sc.name;
+}
+
+/* ============================================================
+   3. NUTRICIÓN
+   ============================================================ */
+function calcIMC(){
+  if(!requierePaciente()) return;
+  const p = state.paciente;
+  const tallaM = p.talla/100;
+  const imc = p.peso/(tallaM*tallaM);
+  let cat, cls;
+  if(imc<18.5){cat='Bajo peso';cls='risk';}
+  else if(imc<25){cat='Normal';cls='good';}
+  else if(imc<30){cat='Sobrepeso';cls='mid';}
+  else {cat='Obesidad';cls='risk';}
+  state.nutricion.imc = imc; state.nutricion.imcCat = cat;
+  markDone('nutricion');
+  document.getElementById('imc_result').innerHTML = `<div class="result ${cls}"><span class="big">${imc.toFixed(1)} kg/m²</span><span class="tag">${cat}</span></div>`;
+}
+function calcNutricion(){
+  if(!requierePaciente()) return;
+  const p = state.paciente;
+  const factorProt = parseFloat(document.getElementById('n_condicion').value);
+  const factorCal = parseFloat(document.getElementById('n_actividad').value);
+  const proteina = p.peso*factorProt;
+  const calorias = p.peso*factorCal;
+  state.nutricion.proteina = proteina; state.nutricion.calorias = calorias;
+  markDone('nutricion');
+  document.getElementById('n_result').innerHTML = `<div class="result good">
+    <span class="big">${proteina.toFixed(0)} g proteína/día</span>
+    <span class="big" style="margin-top:6px;">${calorias.toFixed(0)} kcal/día</span>
+    <span class="tag">Requerimiento estimado</span>
+  </div>
+  <div class="result" style="margin-top:8px;">Interpretación clínica: con ${proteina.toFixed(0)} g/día (${factorProt} g/kg), se busca preservar masa muscular y favorecer la respuesta al ejercicio terapéutico. Fraccionar en 3–4 tomas de 20–30 g mejora la síntesis proteica muscular en el adulto mayor.</div>`;
+}
+const MNA_ITEMS = [
+  {label:'¿Ha disminuido su ingesta de alimentos en los últimos 3 meses?', opts:[['Disminución grave',0],['Disminución moderada',1],['Sin disminución',2]]},
+  {label:'Pérdida de peso en los últimos 3 meses', opts:[['Pérdida >3kg',0],['No lo sabe',1],['Pérdida 1–3kg',2],['Sin pérdida',3]]},
+  {label:'Movilidad', opts:[['De cama a silla',0],['Autonomía en interior',1],['Sale del domicilio',2]]},
+  {label:'¿Ha sufrido estrés psicológico o enfermedad aguda en los últimos 3 meses?', opts:[['Sí',0],['No',2]]},
+  {label:'Problemas neuropsicológicos', opts:[['Demencia o depresión grave',0],['Demencia leve',1],['Sin problemas',2]]},
+  {label:'IMC (usar valor calculado en este módulo)', opts:[['IMC < 19',0],['IMC 19–21',1],['IMC 21–23',2],['IMC ≥ 23',3]]},
+];
+function renderMNA(){
+  const c = document.getElementById('mnaContainer');
+  c.innerHTML = MNA_ITEMS.map((it,i)=>{
+    const opts = it.opts.map(o=>`<option value="${o[1]}">${o[0]}</option>`).join('');
+    return `<div class="scale-item"><span class="itxt">${it.label}</span><select id="mna_${i}">${opts}</select></div>`;
+  }).join('');
+}
+function calcMNA(){
+  let total=0;
+  MNA_ITEMS.forEach((it,i)=>{ total += parseFloat(document.getElementById('mna_'+i).value)||0; });
+  let txt,cls;
+  if(total>=12){txt='Estado nutricional normal';cls='good';}
+  else if(total>=8){txt='Riesgo de malnutrición';cls='mid';}
+  else {txt='Malnutrición confirmada';cls='risk';}
+  state.nutricion.mna = total; state.nutricion.mnaTxt = txt;
+  markDone('nutricion');
+  document.getElementById('mna_result').innerHTML = `<div class="result ${cls}"><span class="big">${total} / 14</span><span class="tag">${txt}</span></div>`;
+}
+function calcMasaMuscular(){
+  if(!requierePaciente()) return;
+  const p = state.paciente;
+  const tallaM = p.talla/100;
+  const sexoVal = p.sexo==='M'?1:0;
+  const smm = 0.244*p.peso + 7.80*tallaM - 0.098*p.edad + 6.6*sexoVal - 3.3;
+  const smi = smm/(tallaM*tallaM); // índice de masa muscular
+  const cutoff = p.sexo==='M'?8.87:6.42; // referencias EWGSOP2 aproximadas para SMI por BIA (orientativo)
+  let txt,cls;
+  if(smi<cutoff){txt='Índice muscular bajo — posible sarcopenia, correlacionar con fuerza de agarre y rendimiento físico';cls='risk';}
+  else {txt='Índice de masa muscular dentro de rango esperado';cls='good';}
+  state.nutricion.smm = smm; state.nutricion.smi = smi;
+  markDone('nutricion');
+  document.getElementById('mm_result').innerHTML = `<div class="result ${cls}"><span class="big">${smm.toFixed(1)} kg</span><span class="tag">SMI: ${smi.toFixed(2)} kg/m² — ${txt}</span></div>`;
+}
+
+/* ============================================================
+   4. METABOLISMO BASAL
+   ============================================================ */
+function calcMetabolismo(){
+  if(!requierePaciente()) return;
+  const p = state.paciente;
+  const factor = parseFloat(document.getElementById('m_factor').value);
+  let bmr;
+  if(p.sexo==='M') bmr = 10*p.peso + 6.25*p.talla - 5*p.edad + 5;
+  else bmr = 10*p.peso + 6.25*p.talla - 5*p.edad - 161;
+  const get = bmr*factor;
+  state.metabolismo.bmr = bmr; state.metabolismo.get = get;
+  markDone('metabolismo');
+  document.getElementById('m_result').innerHTML = `<div class="result good">
+    <span class="big">TMB: ${bmr.toFixed(0)} kcal/día</span>
+    <span class="big" style="margin-top:6px;">GET: ${get.toFixed(0)} kcal/día</span>
+    <span class="tag">Gasto Energético Total (Mifflin-St Jeor × factor de actividad)</span></div>`;
+}
+
+/* ============================================================
+   5. HIDRATACIÓN
+   ============================================================ */
+function calcHidratacion(){
+  if(!requierePaciente()) return;
+  const p = state.paciente;
+  const ml_kg = parseFloat(document.getElementById('h_perfil').value);
+  const totalMl = p.peso*ml_kg;
+  const litros = totalMl/1000;
+  state.hidratacion.litros = litros;
+  markDone('hidratacion');
+  document.getElementById('h_result').innerHTML = `<div class="result good">
+    <span class="big">${litros.toFixed(2)} L / día</span>
+    <span class="tag">≈ ${(litros/0.2).toFixed(0)} vasos de 200 ml</span></div>
+    <div class="result" style="margin-top:8px;">Recomendación: distribuir en pequeñas tomas a lo largo del día, priorizando fuera de las comidas principales; vigilar signos de deshidratación (mucosas secas, confusión, hipotensión ortostática) y ajustar en caso de insuficiencia cardíaca o renal.</div>`;
+}
+
+/* ============================================================
+   6. METS Y BALANCE
+   ============================================================ */
+function calcMETs(){
+  if(!requierePaciente()) return;
+  const p = state.paciente;
+  const mets = parseFloat(document.getElementById('mets_actividad').value);
+  const min = parseFloat(document.getElementById('mets_min').value)||0;
+  const kcal = (mets*3.5*p.peso/200)*min;
+  let cap,cls;
+  if(mets<4){cap='Baja intensidad — apropiada para inicio de programa o paciente frágil';cls='mid';}
+  else if(mets<=6){cap='Intensidad moderada — adecuada para acondicionamiento geriátrico';cls='good';}
+  else {cap='Intensidad vigorosa — verificar capacidad cardiovascular previa';cls='risk';}
+  state.mets.valor=mets; state.mets.kcal=kcal;
+  markDone('mets');
+  document.getElementById('mets_result').innerHTML = `<div class="result ${cls}"><span class="big">${kcal.toFixed(0)} kcal en la sesión</span><span class="tag">${mets} METs — ${cap}</span></div>`;
+}
+function calcBalance(){
+  if(!requierePaciente()) return;
+  if(!state.metabolismo.get){ alert('Primero calcula el Gasto Energético Total en el módulo "Metabolismo Basal".'); showSection('metabolismo'); return; }
+  const ingesta = parseFloat(document.getElementById('bal_ingesta').value);
+  if(!ingesta){ document.getElementById('bal_result').innerHTML=`<div class="result risk">Ingresa la ingesta calórica diaria.</div>`; return; }
+  const get = state.metabolismo.get;
+  const pct = (ingesta/get)*100;
+  const diff = ingesta-get;
+  let txt,cls;
+  if(diff<-200){txt='Déficit calórico — riesgo de pérdida de masa muscular, revalorar aporte';cls='risk';}
+  else if(diff>200){txt='Superávit calórico — riesgo de ganancia de peso graso';cls='mid';}
+  else {txt='Balance energético adecuado';cls='good';}
+  state.balance = {pct, diff, txt};
+  document.getElementById('bal_result').innerHTML = `<div class="result ${cls}">
+    <span class="big">${pct.toFixed(0)}% del GET</span>
+    <span class="tag">${diff>=0?'+':''}${diff.toFixed(0)} kcal/día — ${txt}</span></div>`;
+}
+
+/* ============================================================
+   7. DINAMOMETRÍA
+   ============================================================ */
+function calcDinamometria(){
+  if(!requierePaciente()) return;
+  const p = state.paciente;
+  const fuerza = parseFloat(document.getElementById('d_fuerza').value);
+  if(!fuerza){ document.getElementById('d_result').innerHTML=`<div class="result risk">Ingresa el valor de fuerza de agarre.</div>`; return; }
+  const cutoff = p.sexo==='M'?27:16;
+  const pct = (fuerza/cutoff)*100;
+  let txt,cls,dinapenia;
+  if(fuerza<cutoff){txt='Fuerza reducida — dinapenia probable (marcador de sarcopenia)';cls='risk';dinapenia=true;}
+  else {txt='Fuerza de agarre dentro de rango normal';cls='good';dinapenia=false;}
+  state.dinamometria = {fuerza, dinapenia, txt};
+  markDone('dinamometria');
+  document.getElementById('d_result').innerHTML = `<div class="result ${cls}"><span class="big">${fuerza} kg</span><span class="tag">${pct.toFixed(0)}% del punto de corte (${cutoff}kg) — ${txt}</span></div>`;
+  // auto-sincroniza con el módulo de fragilidad
+  const sel = document.getElementById('f_debilidad');
+  if(sel) sel.value = dinapenia?'1':'0';
+}
+
+/* ============================================================
+   8. FRAGILIDAD
+   ============================================================ */
+function calcFragilidad(){
+  const ids=['f_peso','f_agotamiento','f_debilidad','f_marcha','f_actividad'];
+  let total=0;
+  ids.forEach(id=>{ total += parseInt(document.getElementById(id).value); });
+  let txt,cls;
+  if(total===0){txt='Robusto';cls='good';}
+  else if(total<=2){txt='Prefrágil';cls='mid';}
+  else {txt='Frágil';cls='risk';}
+  state.fragilidad = {total, txt};
+  markDone('fragilidad');
+  document.getElementById('f_result').innerHTML = `<div class="result ${cls}"><span class="big">${total} / 5 criterios</span><span class="tag">${txt} (Fenotipo de Fried)</span></div>`;
+}
+
+/* ============================================================
+   ANEXOS (fotos / consentimiento)
+   ============================================================ */
+function handleAnexoUpload(tipo, input){
+  const file = input.files && input.files[0];
+  const previewId = tipo==='fotoValoracion' ? 'a_foto_preview' : 'a_consent_preview';
+  const preview = document.getElementById(previewId);
+  if(!file){
+    state.anexos[tipo] = null;
+    preview.innerHTML = '';
+    generarInforme();
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e){
+    state.anexos[tipo] = { dataUrl: e.target.result, nombre: file.name, tipo: file.type };
+    if(file.type.startsWith('image/')){
+      preview.innerHTML = `<img src="${e.target.result}" style="max-width:100%;max-height:140px;border-radius:8px;border:1px solid var(--line);">`;
+    } else {
+      preview.innerHTML = `<div class="pill ok">📎 ${file.name}</div>`;
+    }
+    generarInforme();
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ============================================================
+   9. INFORME FINAL
+   ============================================================ */
+// Arma un "record" homogéneo a partir del estado global (para el paciente que se está evaluando ahora mismo)
+function recordDesdeState(){
+  return {
+    paciente: state.paciente, escalas: state.escalas, nutricion: state.nutricion,
+    metabolismo: state.metabolismo, hidratacion: state.hidratacion, mets: state.mets,
+    balance: state.balance, dinamometria: state.dinamometria, fragilidad: state.fragilidad,
+    anexos: state.anexos
+  };
+}
+function generarInforme(){
+  const c = document.getElementById('informeContainer');
+  if(!state.paciente){ c.innerHTML = `<div class="result risk">Aún no se ha completado el registro del paciente. Ve al módulo 1 para comenzar.</div>`; return; }
+  c.innerHTML = buildInformeHTML(recordDesdeState());
+}
+// Construye el HTML del Informe Final / Expediente clínico a partir de cualquier "record"
+// (ya sea el estado en vivo del paciente que se está evaluando, o un expediente ya guardado).
+function buildInformeHTML(rec){
+  const p = rec.paciente || {};
+  const n = rec.nutricion||{}, m = rec.metabolismo||{}, h = rec.hidratacion||{},
+        met = rec.mets||{}, bal = rec.balance||{}, d = rec.dinamometria||{}, f = rec.fragilidad||{},
+        escalas = rec.escalas||{};
+
+  const flags = [];
+  if(n.imcCat && (n.imcCat==='Bajo peso'||n.imcCat==='Obesidad')) flags.push('IMC alterado');
+  if(n.mnaTxt && n.mnaTxt!=='Estado nutricional normal') flags.push('Riesgo nutricional');
+  if(d.dinapenia) flags.push('Dinapenia');
+  if(f.txt && f.txt!=='Robusto') flags.push('Fragilidad: '+f.txt);
+  if(bal.txt && bal.txt!=='Balance energético adecuado') flags.push('Desbalance energético');
+
+  const escalasRows = SCALES.map(sc=>{
+    const r = escalas[sc.id];
+    return `<tr><th>${sc.name}</th><td>${r? (r.total+(sc.max?('/'+sc.max):'')+' — '+r.txt) : 'No evaluado'}</td></tr>`;
+  }).join('');
+
+  const conclusiones = buildConclusionesHTML(rec);
+
+  return `
+    <div class="card">
+      <h3>Datos del evaluador</h3>
+      <table class="report">
+        <tr><th>Nombre del fisioterapeuta</th><td>${p.eval_nombre||'—'}</td></tr>
+        <tr><th>Institución o centro de atención</th><td>${p.eval_institucion||'—'}</td></tr>
+        <tr><th>Fecha de evaluación</th><td>${p.fecha||'—'}</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Datos del paciente</h3>
+      <table class="report">
+        <tr><th>Código del paciente</th><td>${p.codigo||'—'}</td></tr>
+        <tr><th>Nombre</th><td>${p.nombre||'—'}</td></tr>
+        <tr><th>Edad / Sexo</th><td>${p.edad||'—'} años · ${p.sexo==='F'?'Femenino':(p.sexo==='M'?'Masculino':'—')}</td></tr>
+        <tr><th>Fecha de nacimiento</th><td>${p.fnac||'—'}</td></tr>
+        <tr><th>Número de cédula</th><td>${p.cedula||'—'}</td></tr>
+        <tr><th>Estado civil</th><td>${p.estado_civil||'—'}</td></tr>
+        <tr><th>Ocupación</th><td>${p.ocupacion||'—'}</td></tr>
+        <tr><th>Dirección</th><td>${p.direccion||'—'}</td></tr>
+        <tr><th>Teléfono</th><td>${p.telefono||'—'}</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Datos del cuidador</h3>
+      <table class="report">
+        <tr><th>¿Requiere cuidador?</th><td>${p.requiere_cuidador||'No'}</td></tr>
+        <tr><th>Nombre del cuidador</th><td>${p.cuidador_nombre||'—'}</td></tr>
+        <tr><th>Parentesco</th><td>${p.cuidador_parentesco||'—'}</td></tr>
+        <tr><th>Teléfono</th><td>${p.cuidador_telefono||'—'}</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Datos antropométricos</h3>
+      <table class="report">
+        <tr><th>Peso / Talla</th><td>${p.peso||'—'} kg / ${p.talla||'—'} cm</td></tr>
+        <tr><th>IMC</th><td>${p.imc?p.imc.toFixed(1)+' kg/m² — '+p.imcCat:'No calculado'}</td></tr>
+        <tr><th>Circunferencia de pantorrilla</th><td>${p.circ_pantorrilla?p.circ_pantorrilla+' cm':'—'}</td></tr>
+        <tr><th>Circunferencia braquial</th><td>${p.circ_braquial?p.circ_braquial+' cm':'—'}</td></tr>
+        <tr><th>Peso habitual</th><td>${p.peso_habitual?p.peso_habitual+' kg':'—'}</td></tr>
+        <tr><th>Peso ideal</th><td>${p.peso_ideal?p.peso_ideal+' kg':'—'}</td></tr>
+        <tr><th>Pérdida de peso reciente</th><td>${p.perdida_peso||'No'}${p.perdida_peso_detalle?' — '+p.perdida_peso_detalle:''}</td></tr>
+        <tr><th>Presión arterial / FC / SpO₂</th><td>${p.pa||'—'} · ${p.fc?p.fc+' lpm':'—'} · ${p.spo2?p.spo2+' %':'—'}</td></tr>
+        <tr><th>Consentimiento informado</th><td>${p.consentimiento?'Otorgado':'No registrado'}</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Historia Clínica</h3>
+      <table class="report">
+        <tr><th>Diagnóstico médico</th><td>${p.diagnostico_medico||'—'}</td></tr>
+        <tr><th>Motivo de consulta</th><td>${p.motivo||'—'}</td></tr>
+        <tr><th>Diagnóstico fisioterapéutico</th><td>${p.diagnostico||'—'}</td></tr>
+        <tr><th>Antecedentes personales</th><td>${p.antecedentes_personales||'—'}</td></tr>
+        <tr><th>Antecedentes patológicos</th><td>${p.antecedentes||'—'}</td></tr>
+        <tr><th>Antecedentes patológicos familiares</th><td>${p.antecedentes_familiares||'—'}</td></tr>
+        <tr><th>Antecedentes patológicos quirúrgicos</th><td>${p.antecedentes_quirurgicos||'—'}</td></tr>
+        <tr><th>Medicación actual</th><td>${p.medicacion||'—'}</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Resultados de escalas geriátricas</h3>
+      <table class="report">${escalasRows}</table>
+    </div>
+
+    <div class="card">
+      <h3>Estado nutricional y metabólico</h3>
+      <table class="report">
+        <tr><th>IMC</th><td>${n.imc?n.imc.toFixed(1)+' kg/m² — '+n.imcCat:'No calculado'}</td></tr>
+        <tr><th>Riesgo nutricional (MNA-SF)</th><td>${n.mna!==undefined?n.mna+'/14 — '+n.mnaTxt:'No calculado'}</td></tr>
+        <tr><th>Proteína recomendada</th><td>${n.proteina?n.proteina.toFixed(0)+' g/día':'No calculado'}</td></tr>
+        <tr><th>Requerimiento calórico</th><td>${n.calorias?n.calorias.toFixed(0)+' kcal/día':'No calculado'}</td></tr>
+        <tr><th>Masa muscular estimada</th><td>${n.smm?n.smm.toFixed(1)+' kg (SMI '+n.smi.toFixed(2)+' kg/m²)':'No calculado'}</td></tr>
+        <tr><th>Tasa Metabólica Basal</th><td>${m.bmr?m.bmr.toFixed(0)+' kcal/día':'No calculado'}</td></tr>
+        <tr><th>Gasto Energético Total</th><td>${m.get?m.get.toFixed(0)+' kcal/día':'No calculado'}</td></tr>
+        <tr><th>Hidratación recomendada</th><td>${h.litros?h.litros.toFixed(2)+' L/día':'No calculado'}</td></tr>
+        <tr><th>Balance energético</th><td>${bal.pct?bal.pct.toFixed(0)+'% del GET ('+(bal.diff>=0?'+':'')+bal.diff.toFixed(0)+' kcal) — '+bal.txt:'No calculado'}</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Fuerza, fragilidad y capacidad funcional</h3>
+      <table class="report">
+        <tr><th>Fuerza de agarre</th><td>${d.fuerza?d.fuerza+' kg — '+d.txt:'No calculado'}</td></tr>
+        <tr><th>Clasificación de fragilidad</th><td>${f.txt?f.total+'/5 criterios — '+f.txt:'No calculado'}</td></tr>
+        <tr><th>METs de la actividad prescrita</th><td>${met.valor?met.valor+' METs ('+met.kcal.toFixed(0)+' kcal/sesión)':'No calculado'}</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Banderas clínicas identificadas</h3>
+      ${flags.length? `<div style="display:flex;gap:8px;flex-wrap:wrap;">${flags.map(fl=>`<span class="pill warn">${fl}</span>`).join('')}</div>` : `<div class="pill ok">Sin banderas de alarma relevantes</div>`}
+    </div>
+
+    <div class="card">
+      <h3>Conclusiones y recomendaciones fisioterapéuticas</h3>
+      <div style="white-space:pre-line;line-height:1.7;font-size:14px;">${conclusiones}</div>
+    </div>
+
+    ${buildAnexosHTML(rec)}
+  `;
+}
+
+function generarConclusiones(){
+  return buildConclusionesHTML(recordDesdeState());
+}
+function buildConclusionesHTML(rec){
+  const p = rec.paciente||{}, n = rec.nutricion||{}, d = rec.dinamometria||{}, f = rec.fragilidad||{}, bal = rec.balance||{};
+  let lines = [];
+  lines.push(`Paciente de ${p.edad||'—'} años, IMC ${n.imc?n.imc.toFixed(1):'—'} (${n.imcCat||'sin calcular'}), con clasificación de fragilidad "${f.txt||'pendiente de evaluar'}".`);
+  if(d.dinapenia) lines.push('Se identifica dinapenia (fuerza de agarre reducida), lo que sugiere riesgo de sarcopenia; se recomienda incorporar entrenamiento de fuerza progresivo (2-3 sesiones/semana) con ejercicios multiarticulares y resistencia progresiva.');
+  if(n.mnaTxt && n.mnaTxt!=='Estado nutricional normal') lines.push('El tamizaje nutricional MNA-SF sugiere riesgo nutricional; se recomienda interconsulta con nutrición clínica y refuerzo del aporte proteico distribuido en el día.');
+  if(f.txt==='Frágil'||f.txt==='Prefrágil') lines.push('El fenotipo de fragilidad indica la necesidad de un plan fisioterapéutico multicomponente: fuerza, equilibrio, marcha y resistencia aeróbica de baja-moderada intensidad, con progresión supervisada.');
+  if(bal.txt && bal.txt.includes('Déficit')) lines.push('Existe un déficit calórico relativo al gasto estimado; coordinar con nutrición para evitar catabolismo muscular durante el proceso de rehabilitación.');
+  lines.push('Se sugiere reevaluación de escalas geriátricas y parámetros antropométricos en 4-6 semanas para monitorizar respuesta a la intervención.');
+  return lines.map(l=>'• '+l).join('\n');
+}
+
+function generarAnexosHTML(){
+  return buildAnexosHTML(recordDesdeState());
+}
+function buildAnexosHTML(rec){
+  const a = rec.anexos || {};
+  const item = a.fotoValoracion;
+  const contenido = !item
+    ? `<p style="font-size:13px;color:var(--ink-soft);">Fotografía de la valoración: no adjuntada.</p>`
+    : `<div class="anexo-img-wrap"><img src="${item.dataUrl}" class="anexo-img"></div>`;
+  return `
+    <div class="card anexo-card">
+      <h3>Anexos</h3>
+      ${contenido}
+    </div>
+  `;
+}
+
+// Vista de solo lectura del expediente clínico completo de un paciente guardado
+function renderExpediente(rec){
+  const p = rec.paciente || {};
+  document.getElementById('expTopName').textContent = p.nombre || 'Paciente sin nombre';
+  document.getElementById('expTopMeta').textContent = `${p.codigo&&p.codigo!=='—'?p.codigo+' · ':''}${p.edad||'—'} años · ${p.sexo==='F'?'Femenino':(p.sexo==='M'?'Masculino':'—')}`;
+  const totalCompletables = NAV_ITEMS.length - 1;
+  const done = (rec.doneModules||[]).length;
+  const estado = rec.legacy ? 'Registro antiguo (datos limitados)' : (done>=totalCompletables ? 'Completa' : 'En proceso');
+  const estadoCls = rec.legacy ? '' : (done>=totalCompletables ? 'ok' : 'warn');
+  document.getElementById('expTopFlags').innerHTML = `<span class="pill ${estadoCls}">${estado}</span>`;
+
+  const btnContinuar = document.getElementById('expBtnContinuar');
+  const puedeEditar = !rec.legacy;
+  document.getElementById('expBtnEditar').disabled = !puedeEditar;
+  document.getElementById('expBtnEditar').style.opacity = puedeEditar ? '1' : '.5';
+  btnContinuar.style.display = (!rec.legacy && done<totalCompletables) ? 'inline-flex' : 'none';
+
+  document.getElementById('expedienteContent').innerHTML = rec.legacy
+    ? `<div class="card"><h3>Datos disponibles</h3><table class="report">
+        <tr><th>Código</th><td>${p.codigo||'—'}</td></tr>
+        <tr><th>Nombre</th><td>${p.nombre||'—'}</td></tr>
+        <tr><th>Edad / Sexo</th><td>${p.edad||'—'} años · ${p.sexo==='F'?'Femenino':(p.sexo==='M'?'Masculino':'—')}</td></tr>
+        <tr><th>Fecha</th><td>${p.fecha||'—'}</td></tr>
+      </table>
+      <p style="font-size:13px;color:var(--ink-soft);margin-top:12px;">Este es un registro antiguo, guardado antes de que el expediente completo estuviera disponible. No contiene historia clínica ni evaluaciones detalladas, por lo que no puede editarse ni exportarse a PDF.</p>
+      </div>`
+    : buildInformeHTML(rec);
+}
+
+/* ============================================================
+   DESCARGA DE PDF — generación nativa con jsPDF + autoTable
+   (documento vectorial real: no es una captura de pantalla, por lo
+   que no hay cuadros vacíos, cortes de texto ni saltos de página
+   incorrectos; cada sección fluye automáticamente a la siguiente
+   página cuando no cabe en la actual)
+   ============================================================ */
+function descargarPDF(){
+  const status = document.getElementById('pdfStatus');
+  const btn = document.getElementById('btnPdf');
+  if(!state.paciente){
+    alert('Primero completa y guarda el "Registro del Paciente" (módulo 1).');
+    showSection('registro');
+    return;
+  }
+  generarInforme(); // mantiene el informe en pantalla actualizado con los últimos datos
+
+  if(typeof window.jspdf === 'undefined' || !window.jspdf.jsPDF){
+    status.innerHTML = '⚠ No se pudo cargar el generador de PDF (revisa la conexión a internet la primera vez que abres la app). Puedes usar "Imprimir (navegador)" como alternativa.';
+    return;
+  }
+
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = 'Generando PDF...';
+  status.textContent = 'Preparando el documento, esto puede tardar unos segundos...';
+
+  generarPDFClinico()
+    .then(()=>{
+      status.textContent = '✓ PDF generado. Si no ves la descarga, revisa la carpeta "Descargas" del dispositivo.';
+    })
+    .catch((err)=>{
+      status.textContent = '⚠ No se pudo generar el PDF automáticamente. Usa "Imprimir (navegador)" como alternativa.';
+      console.error(err);
+    })
+    .finally(()=>{
+      btn.disabled = false; btn.textContent = originalText;
+    });
+}
+
+function loadImageDims(dataUrl){
+  return new Promise((resolve)=>{
+    const img = new Image();
+    img.onload = ()=>resolve({w:img.naturalWidth, h:img.naturalHeight});
+    img.onerror = ()=>resolve(null);
+    img.src = dataUrl;
+  });
+}
+
+async function generarPDFClinico(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4', orientation:'portrait' });
+
+  const PAGE_W = 210, PAGE_H = 297, MARGIN = 16, CONTENT_W = PAGE_W - 2*MARGIN;
+  const HEAD_BOTTOM = 30, FOOT_TOP = PAGE_H - 18;
+  const COLOR = {
+    teal:[14,163,148], ink:[15,27,45], inkSoft:[81,96,120],
+    line:[229,234,238], coral:[196,69,31], amber:[176,110,10], green:[16,120,90], soft:[247,250,250]
+  };
+
+  const p = state.paciente, n = state.nutricion, m = state.metabolismo, h = state.hidratacion,
+        met = state.mets, bal = state.balance, d = state.dinamometria, f = state.fragilidad;
+  const fechaHoy = new Date().toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit', year:'numeric'});
+
+  function drawHeader(){
+    doc.setFillColor(...COLOR.teal);
+    doc.roundedRect(MARGIN, 10, 14, 14, 3, 3, 'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(10.5);
+    doc.text('VIG', MARGIN+7, 18.2, {align:'center'});
+    doc.setTextColor(...COLOR.ink); doc.setFont('helvetica','bold'); doc.setFontSize(12.5);
+    doc.text('V.I.G. — Valoración Integral Geriátrica', MARGIN+19, 15.5);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.8); doc.setTextColor(...COLOR.inkSoft);
+    doc.text('Informe de Evaluación Fisioterapéutica Geriátrica', MARGIN+19, 20.5);
+    doc.setFontSize(8.3);
+    doc.text('Generado: '+fechaHoy, PAGE_W-MARGIN, 15.5, {align:'right'});
+    if(p) doc.text(p.nombre, PAGE_W-MARGIN, 20.5, {align:'right'});
+    doc.setDrawColor(...COLOR.line); doc.setLineWidth(0.4);
+    doc.line(MARGIN, 26, PAGE_W-MARGIN, 26);
+  }
+  function checkBreak(y, needed){
+    if(y+needed > FOOT_TOP){ doc.addPage(); drawHeader(); return HEAD_BOTTOM+4; }
+    return y;
+  }
+  function sectionTitle(y, text){
+    y = checkBreak(y, 12);
+    doc.setFillColor(...COLOR.teal); doc.rect(MARGIN, y-3.6, 3, 5, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(11.5); doc.setTextColor(...COLOR.ink);
+    doc.text(text, MARGIN+6, y);
+    return y+7;
+  }
+  function kvTable(y, rows){
+    doc.autoTable({
+      startY: y, margin:{left:MARGIN, right:MARGIN, top:HEAD_BOTTOM+4, bottom:20},
+      body: rows, theme:'grid',
+      styles:{font:'helvetica', fontSize:9, textColor:COLOR.ink, lineColor:COLOR.line, lineWidth:0.2, cellPadding:2.4},
+      columnStyles:{0:{cellWidth:62, fontStyle:'bold', textColor:COLOR.inkSoft, fillColor:COLOR.soft}, 1:{cellWidth:CONTENT_W-62}},
+      didDrawPage: ()=>{ drawHeader(); }
+    });
+    return doc.lastAutoTable.finalY + 9;
+  }
+
+  drawHeader();
+  let y = HEAD_BOTTOM + 8;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(...COLOR.ink);
+  doc.text('Informe de Valoración Integral Geriátrica', MARGIN, y);
+  y += 7;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(...COLOR.inkSoft);
+  doc.text(`Paciente: ${p.nombre}   ·   Código: ${p.codigo||'—'}   ·   Fecha de valoración: ${p.fecha||'—'}`, MARGIN, y);
+  y += 10;
+
+  // 1. Datos del evaluador
+  y = sectionTitle(y, 'Datos del evaluador');
+  y = kvTable(y, [
+    ['Nombre del fisioterapeuta', p.eval_nombre||'—'],
+    ['Institución o centro de atención', p.eval_institucion||'—'],
+    ['Fecha de evaluación', p.fecha||'—'],
+  ]);
+
+  // 1b. Datos del paciente
+  y = sectionTitle(y, 'Datos del paciente');
+  y = kvTable(y, [
+    ['Código del paciente', p.codigo||'—'],
+    ['Nombre', p.nombre],
+    ['Edad / Sexo', `${p.edad} años · ${p.sexo==='F'?'Femenino':'Masculino'}`],
+    ['Fecha de nacimiento', p.fnac||'—'],
+    ['Número de cédula', p.cedula||'—'],
+    ['Estado civil', p.estado_civil||'—'],
+    ['Ocupación', p.ocupacion||'—'],
+    ['Dirección', p.direccion||'—'],
+    ['Teléfono', p.telefono||'—'],
+  ]);
+
+  // 1c. Datos del cuidador
+  y = sectionTitle(y, 'Datos del cuidador');
+  y = kvTable(y, [
+    ['¿Requiere cuidador?', p.requiere_cuidador||'No'],
+    ['Nombre del cuidador', p.cuidador_nombre||'—'],
+    ['Parentesco', p.cuidador_parentesco||'—'],
+    ['Teléfono', p.cuidador_telefono||'—'],
+  ]);
+
+  // 1d. Datos antropométricos
+  y = sectionTitle(y, 'Datos antropométricos');
+  y = kvTable(y, [
+    ['Peso / Talla', `${p.peso||'—'} kg / ${p.talla||'—'} cm`],
+    ['IMC', p.imc? p.imc.toFixed(1)+' kg/m² — '+p.imcCat : 'No calculado'],
+    ['Circunferencia de pantorrilla', p.circ_pantorrilla? p.circ_pantorrilla+' cm':'—'],
+    ['Circunferencia braquial', p.circ_braquial? p.circ_braquial+' cm':'—'],
+    ['Peso habitual', p.peso_habitual? p.peso_habitual+' kg':'—'],
+    ['Peso ideal', p.peso_ideal? p.peso_ideal+' kg':'—'],
+    ['Pérdida de peso reciente', (p.perdida_peso||'No')+(p.perdida_peso_detalle?' — '+p.perdida_peso_detalle:'')],
+    ['Presión arterial', p.pa||'—'],
+    ['Frecuencia cardíaca', p.fc? p.fc+' lpm':'—'],
+    ['Saturación O₂', p.spo2? p.spo2+' %':'—'],
+    ['Consentimiento informado', p.consentimiento?'Otorgado':'No registrado'],
+  ]);
+
+  // 1e. Historia Clínica
+  y = sectionTitle(y, 'Historia Clínica');
+  y = kvTable(y, [
+    ['Diagnóstico médico', p.diagnostico_medico||'—'],
+    ['Motivo de consulta', p.motivo||'—'],
+    ['Diagnóstico fisioterapéutico', p.diagnostico||'—'],
+    ['Antecedentes personales', p.antecedentes_personales||'—'],
+    ['Antecedentes patológicos', p.antecedentes||'—'],
+    ['Antecedentes patológicos familiares', p.antecedentes_familiares||'—'],
+    ['Antecedentes patológicos quirúrgicos', p.antecedentes_quirurgicos||'—'],
+    ['Medicación actual', p.medicacion||'—'],
+  ]);
+
+  // 2. Escalas geriátricas
+  y = sectionTitle(y, 'Resultados de escalas geriátricas');
+  const escalaRows = SCALES.map(sc=>{
+    const r = state.escalas[sc.id];
+    if(!r) return [sc.name, 'No evaluado', '—', 'none'];
+    const [txt, cls] = sc.interpret(r.total);
+    return [sc.name, r.total+(sc.max?('/'+sc.max):''), txt, cls];
+  });
+  doc.autoTable({
+    startY:y, margin:{left:MARGIN, right:MARGIN, top:HEAD_BOTTOM+4, bottom:20},
+    head:[['Escala / Test','Resultado','Interpretación']],
+    body: escalaRows.map(r=>[r[0],r[1],r[2]]),
+    theme:'grid',
+    styles:{font:'helvetica', fontSize:8.6, textColor:COLOR.ink, lineColor:COLOR.line, lineWidth:0.2, cellPadding:2.4},
+    headStyles:{fillColor:COLOR.teal, textColor:255, fontStyle:'bold', fontSize:9},
+    columnStyles:{0:{cellWidth:78}, 1:{cellWidth:26}, 2:{cellWidth:CONTENT_W-78-26}},
+    didParseCell:(data)=>{
+      if(data.section==='body' && data.column.index===2){
+        const cls = escalaRows[data.row.index][3];
+        if(cls==='risk') data.cell.styles.textColor = COLOR.coral;
+        else if(cls==='mid') data.cell.styles.textColor = COLOR.amber;
+        else if(cls==='good') data.cell.styles.textColor = COLOR.green;
+      }
+    },
+    didDrawPage: ()=>{ drawHeader(); }
+  });
+  y = doc.lastAutoTable.finalY + 9;
+
+  // 3. Estado nutricional y metabólico
+  y = sectionTitle(y, 'Estado nutricional y metabólico');
+  y = kvTable(y, [
+    ['IMC', n.imc? n.imc.toFixed(1)+' kg/m² — '+n.imcCat : 'No calculado'],
+    ['Riesgo nutricional (MNA-SF)', n.mna!==undefined? n.mna+'/14 — '+n.mnaTxt : 'No calculado'],
+    ['Proteína recomendada', n.proteina? n.proteina.toFixed(0)+' g/día' : 'No calculado'],
+    ['Requerimiento calórico', n.calorias? n.calorias.toFixed(0)+' kcal/día' : 'No calculado'],
+    ['Masa muscular estimada', n.smm? n.smm.toFixed(1)+' kg (SMI '+n.smi.toFixed(2)+' kg/m²)' : 'No calculado'],
+    ['Tasa Metabólica Basal', m.bmr? m.bmr.toFixed(0)+' kcal/día' : 'No calculado'],
+    ['Gasto Energético Total', m.get? m.get.toFixed(0)+' kcal/día' : 'No calculado'],
+    ['Hidratación recomendada', h.litros? h.litros.toFixed(2)+' L/día' : 'No calculado'],
+    ['Balance energético', bal.pct? bal.pct.toFixed(0)+'% del GET ('+(bal.diff>=0?'+':'')+bal.diff.toFixed(0)+' kcal) — '+bal.txt : 'No calculado'],
+  ]);
+
+  // 4. Fuerza, fragilidad y capacidad funcional
+  y = sectionTitle(y, 'Fuerza, fragilidad y capacidad funcional');
+  y = kvTable(y, [
+    ['Fuerza de agarre', d.fuerza? d.fuerza+' kg — '+d.txt : 'No calculado'],
+    ['Clasificación de fragilidad', f.txt? f.total+'/5 criterios — '+f.txt : 'No calculado'],
+    ['METs de la actividad prescrita', met.valor? met.valor+' METs ('+met.kcal.toFixed(0)+' kcal/sesión)' : 'No calculado'],
+  ]);
+
+  // 5. Banderas clínicas
+  y = sectionTitle(y, 'Banderas clínicas identificadas');
+  const flags = [];
+  if(n.imcCat && (n.imcCat==='Bajo peso'||n.imcCat==='Obesidad')) flags.push('IMC alterado');
+  if(n.mnaTxt && n.mnaTxt!=='Estado nutricional normal') flags.push('Riesgo nutricional');
+  if(d.dinapenia) flags.push('Dinapenia');
+  if(f.txt && f.txt!=='Robusto') flags.push('Fragilidad: '+f.txt);
+  if(bal.txt && bal.txt!=='Balance energético adecuado') flags.push('Desbalance energético');
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+  if(flags.length){
+    flags.forEach(fl=>{
+      y = checkBreak(y, 6);
+      doc.setTextColor(...COLOR.coral);
+      doc.text('⚠ '+fl, MARGIN, y);
+      y += 6;
+    });
+  } else {
+    y = checkBreak(y, 6);
+    doc.setTextColor(...COLOR.green);
+    doc.text('✓ Sin banderas de alarma relevantes', MARGIN, y);
+    y += 6;
+  }
+  y += 3;
+
+  // 6. Conclusiones y recomendaciones fisioterapéuticas
+  y = sectionTitle(y, 'Conclusiones y recomendaciones fisioterapéuticas');
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...COLOR.ink);
+  const conclusionLines = generarConclusiones().split('\n').map(l=>l.replace(/^•\s*/,''));
+  conclusionLines.forEach(line=>{
+    const wrapped = doc.splitTextToSize('•  '+line, CONTENT_W);
+    y = checkBreak(y, wrapped.length*5 + 3);
+    doc.text(wrapped, MARGIN, y);
+    y += wrapped.length*5 + 3;
+  });
+
+  // 7. Anexos
+  y = sectionTitle(y+2, 'Anexos');
+  const anexo = state.anexos && state.anexos.fotoValoracion;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...COLOR.inkSoft);
+  if(anexo && anexo.dataUrl){
+    const dims = await loadImageDims(anexo.dataUrl);
+    if(dims){
+      let imgW = CONTENT_W, imgH = imgW*(dims.h/dims.w);
+      const maxH = FOOT_TOP - HEAD_BOTTOM - 10;
+      if(imgH > maxH){ imgH = maxH; imgW = imgH*(dims.w/dims.h); }
+      y = checkBreak(y, imgH + 6);
+      const format = (anexo.tipo && anexo.tipo.includes('png')) ? 'PNG' : 'JPEG';
+      doc.addImage(anexo.dataUrl, format, MARGIN, y, imgW, imgH);
+      y += imgH + 6;
+    } else {
+      doc.text('No se pudo procesar la imagen adjunta.', MARGIN, y); y += 6;
+    }
+  } else {
+    doc.text('Fotografía de la valoración: no adjuntada.', MARGIN, y); y += 6;
+  }
+
+  // Pie de página en todas las páginas
+  const totalPages = doc.internal.getNumberOfPages();
+  for(let i=1;i<=totalPages;i++){
+    doc.setPage(i);
+    doc.setDrawColor(...COLOR.line); doc.setLineWidth(0.3);
+    doc.line(MARGIN, FOOT_TOP+2, PAGE_W-MARGIN, FOOT_TOP+2);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(140,151,168);
+    doc.text('V.I.G. · Herramienta de apoyo clínico — no reemplaza el juicio profesional.', MARGIN, FOOT_TOP+7);
+    doc.text(`Página ${i} / ${totalPages}`, PAGE_W-MARGIN, FOOT_TOP+7, {align:'right'});
+  }
+
+  const nombreArchivo = 'Informe_VIG_' + (p.nombre||'paciente').trim().replace(/\s+/g,'_') + '.pdf';
+  doc.save(nombreArchivo);
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+renderNav();
+renderScales();
+renderMNA();
+updateProgress();
+toggleCuidadorFields();
+actualizarIMCAuto();
+goDashboard();
+</script>
+</body>
+</html>
