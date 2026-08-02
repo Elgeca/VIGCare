@@ -44,7 +44,7 @@
     width:258px;flex-shrink:0;color:#fff;
     background:linear-gradient(190deg,#0F1B2D 0%,#132540 55%,#0F1B2D 100%);
     display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;overflow-x:hidden;
-    position:relative;z-index:10;
+    z-index:10;
   }
   nav.sidebar::before{
     content:'';position:absolute;top:-80px;right:-90px;width:260px;height:260px;border-radius:50%;
@@ -451,6 +451,26 @@
       <div class="eyebrow">09 · Síntesis clínica</div>
       <h2 class="title">Informe Final Automatizado</h2>
       <p class="lede">Resumen ejecutivo de la V.I.G., generado a partir de todos los módulos completados. Imprime o exporta como PDF desde el navegador.</p>
+      <div class="card noprint" style="margin-bottom:18px;">
+        <h3>Anexos del informe</h3>
+        <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;">Sube aquí las imágenes y escribe las referencias; se incrustarán directamente en el informe y en el PDF exportado.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div>
+            <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Fotografía de la valoración</label>
+            <input type="file" accept="image/*" id="a_foto" onchange="handleAnexoUpload('fotoValoracion', this)">
+            <div id="a_foto_preview" style="margin-top:8px;"></div>
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Consentimiento informado firmado</label>
+            <input type="file" accept="image/*,.pdf" id="a_consent" onchange="handleAnexoUpload('consentimientoFirmado', this)">
+            <div id="a_consent_preview" style="margin-top:8px;"></div>
+          </div>
+        </div>
+        <div style="margin-top:14px;">
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Referencias bibliográficas (APA/Vancouver)</label>
+          <textarea id="a_referencias" rows="3" style="width:100%;" placeholder="Pega aquí las referencias completas..." onchange="state.anexos.referencias=this.value; generarInforme();"></textarea>
+        </div>
+      </div>
       <div class="noprint" style="margin-bottom:18px;display:flex;gap:10px;">
         <button class="primary" onclick="generarInforme()">Generar / actualizar informe</button>
         <button class="ghost" onclick="descargarPDF()" id="btnPdf">⬇ Descargar informe en PDF</button>
@@ -470,7 +490,8 @@
    ============================================================ */
 const state = {
   paciente:null, escalas:{}, nutricion:{}, metabolismo:{}, hidratacion:{},
-  mets:{}, balance:{}, dinamometria:{}, fragilidad:{}
+  mets:{}, balance:{}, dinamometria:{}, fragilidad:{},
+  anexos:{ fotoValoracion:null, consentimientoFirmado:null, referencias:'' }
 };
 
 /* ============================================================
@@ -932,6 +953,32 @@ function calcFragilidad(){
 }
 
 /* ============================================================
+   ANEXOS (fotos / consentimiento)
+   ============================================================ */
+function handleAnexoUpload(tipo, input){
+  const file = input.files && input.files[0];
+  const previewId = tipo==='fotoValoracion' ? 'a_foto_preview' : 'a_consent_preview';
+  const preview = document.getElementById(previewId);
+  if(!file){
+    state.anexos[tipo] = null;
+    preview.innerHTML = '';
+    generarInforme();
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e){
+    state.anexos[tipo] = { dataUrl: e.target.result, nombre: file.name, tipo: file.type };
+    if(file.type.startsWith('image/')){
+      preview.innerHTML = `<img src="${e.target.result}" style="max-width:100%;max-height:140px;border-radius:8px;border:1px solid var(--line);">`;
+    } else {
+      preview.innerHTML = `<div class="pill ok">📎 ${file.name}</div>`;
+    }
+    generarInforme();
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ============================================================
    9. INFORME FINAL
    ============================================================ */
 function generarInforme(){
@@ -1009,10 +1056,7 @@ function generarInforme(){
       <div style="white-space:pre-line;line-height:1.7;font-size:14px;">${conclusiones}</div>
     </div>
 
-    <div class="card">
-      <h3>Anexos</h3>
-      <p style="font-size:13.5px;color:var(--ink-soft);">Adjuntar en el documento entregable: (1) fotografía de la valoración con el paciente de estudio, (2) consentimiento informado firmado, (3) referencias bibliográficas completas en formato APA/Vancouver según lo solicitado por la cátedra.</p>
-    </div>
+    ${generarAnexosHTML()}
   `;
 }
 
@@ -1026,6 +1070,29 @@ function generarConclusiones(){
   if(bal.txt && bal.txt.includes('Déficit')) lines.push('Existe un déficit calórico relativo al gasto estimado; coordinar con nutrición para evitar catabolismo muscular durante el proceso de rehabilitación.');
   lines.push('Se sugiere reevaluación de escalas geriátricas y parámetros antropométricos en 4-6 semanas para monitorizar respuesta a la intervención.');
   return lines.map(l=>'• '+l).join('\n');
+}
+
+function generarAnexosHTML(){
+  const a = state.anexos || {};
+  const bloque = (item, titulo) => {
+    if(!item) return `<p style="font-size:13px;color:var(--ink-soft);">${titulo}: no adjuntado.</p>`;
+    if(item.tipo && item.tipo.startsWith('image/')){
+      return `<div style="margin-bottom:10px;"><p style="font-size:13px;font-weight:600;margin-bottom:6px;">${titulo}</p><img src="${item.dataUrl}" style="max-width:100%;max-height:320px;border-radius:8px;border:1px solid var(--line);"></div>`;
+    }
+    return `<p style="font-size:13px;"><strong>${titulo}:</strong> archivo adjunto — ${item.nombre}</p>`;
+  };
+  const refs = (a.referencias||'').trim();
+  return `
+    <div class="card">
+      <h3>Anexos</h3>
+      ${bloque(a.fotoValoracion, 'Fotografía de la valoración')}
+      ${bloque(a.consentimientoFirmado, 'Consentimiento informado firmado')}
+      <div style="margin-top:10px;">
+        <p style="font-size:13px;font-weight:600;margin-bottom:6px;">Referencias bibliográficas</p>
+        ${refs ? `<div style="white-space:pre-line;font-size:13px;line-height:1.6;">${refs}</div>` : `<p style="font-size:13px;color:var(--ink-soft);">Sin referencias registradas.</p>`}
+      </div>
+    </div>
+  `;
 }
 
 /* ============================================================
