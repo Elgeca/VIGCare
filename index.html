@@ -992,6 +992,13 @@ function markDone(id){
   const btn = document.getElementById('nav-'+id);
   if(btn) btn.classList.add('done');
   updateProgress();
+  // Única fuente de verdad para el progreso: doneModules + state.*.
+  // Cada vez que un módulo se marca como completado, se persiste de inmediato
+  // el expediente completo (paciente, escalas, resultados y doneModules) en
+  // localStorage. Antes esto solo ocurría al guardar el Registro (módulo 1),
+  // por lo que el resto del avance quedaba únicamente en memoria y se perdía
+  // al volver al Dashboard, recargar la app o reabrir el expediente.
+  if(state.paciente) guardarPacienteCompleto();
 }
 function updateProgress(){
   const total = NAV_ITEMS.length - 1; // informe no cuenta como "completable"
@@ -1068,7 +1075,6 @@ function guardarRegistro(){
   document.getElementById('r_result').innerHTML = `<div class="result good">Registro guardado. Ya puedes avanzar a los siguientes módulos — los datos antropométricos se usarán automáticamente.</div>`;
   updateTopbar();
   markDone('registro');
-  guardarPacienteCompleto();
 }
 function updateTopbar(){
   const p = state.paciente;
@@ -1683,6 +1689,10 @@ function calcBalance(){
   document.getElementById('bal_result').innerHTML = `<div class="result ${cls}">
     <span class="big">${pct.toFixed(0)}% del GET</span>
     <span class="tag">${diff>=0?'+':''}${diff.toFixed(0)} kcal/día — ${txt}</span></div>`;
+  // El balance no tiene su propio módulo en doneModules (vive dentro de "METs y Balance",
+  // cuyo estado 'done' lo marca calcMETs), así que se persiste explícitamente aquí para
+  // no depender de que el usuario complete otro módulo después.
+  if(state.paciente) guardarPacienteCompleto();
 }
 
 /* ============================================================
