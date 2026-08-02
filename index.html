@@ -1743,6 +1743,7 @@ function handleAnexoUpload(tipo, input){
     state.anexos[tipo] = null;
     preview.innerHTML = '';
     generarInforme();
+    if(state.paciente) guardarPacienteCompleto();
     return;
   }
   const reader = new FileReader();
@@ -1754,6 +1755,11 @@ function handleAnexoUpload(tipo, input){
       preview.innerHTML = `<div class="pill ok">📎 ${file.name}</div>`;
     }
     generarInforme();
+    // Este campo vive en "Informe Final" (módulo 9), fuera de NAV_ITEMS, por lo que
+    // ningún markDone() posterior vuelve a persistir el expediente. Se guarda aquí
+    // explícitamente para que la fotografía quede en el mismo expediente ya persistido
+    // (state.anexos), igual que el resto de los datos del paciente.
+    if(state.paciente) guardarPacienteCompleto();
   };
   reader.readAsDataURL(file);
 }
