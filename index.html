@@ -113,9 +113,12 @@
   p.lede{color:var(--ink-soft);margin:0 0 28px;max-width:640px;line-height:1.55;}
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:20px;
-    box-shadow:0 1px 2px rgba(15,27,45,.04);transition:box-shadow .25s var(--ease),transform .25s var(--ease);}
+    box-shadow:0 1px 2px rgba(15,27,45,.04);transition:box-shadow .25s var(--ease),transform .25s var(--ease);
+    page-break-inside:avoid;break-inside:avoid;}
   .card:hover{box-shadow:0 10px 28px rgba(15,27,45,.07);transform:translateY(-1px);}
   .card h3{font-size:16px;margin:0 0 16px;font-weight:700;display:flex;align-items:center;gap:8px;}
+  .anexo-img-wrap{page-break-inside:avoid;break-inside:avoid;text-align:center;}
+  .anexo-img{max-width:100%;max-height:820px;width:auto;height:auto;object-fit:contain;border-radius:10px;border:1px solid var(--line);display:inline-block;}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
 
@@ -165,6 +168,8 @@
   table.report th,table.report td{text-align:left;padding:10px 10px;border-bottom:1px solid var(--line);}
   table.report th{color:var(--ink-soft);font-weight:600;width:46%;}
   table.report tr:hover td, table.report tr:hover th{background:#FAFCFD;}
+  table.escalas-ref th{width:auto;color:var(--ink);background:#FAFCFD;}
+  table.escalas-ref td:first-child{font-weight:600;}
 
   .gauge-wrap{display:flex;align-items:center;gap:22px;flex-wrap:wrap;}
 
@@ -280,9 +285,25 @@
     <section class="section" id="sec-escalas" data-num="2">
       <div class="eyebrow">02 · Tamizaje geriátrico</div>
       <h2 class="title">Módulo de Escalas y Test Geriátricos</h2>
-      <p class="lede">8 escalas validadas que cubren funcionalidad básica, instrumental, marcha/equilibrio, cognición, ánimo y riesgo de caída.</p>
-      <div class="card" id="escalasContainer"></div>
-      <p class="cite">Escalas seleccionadas por su uso estándar en Valoración Geriátrica Integral: Mahoney &amp; Barthel (1965); Lawton &amp; Brody (1969); Tinetti (1986); Podsiadlo &amp; Richardson (1991); Guralnik et al. (1994); Yesavage et al. (1983); Pfeiffer (1975); Morse et al. (1989).</p>
+      <p class="lede">Escalas validadas que cubren funcionalidad básica, instrumental, marcha/equilibrio, cognición, ánimo, nutrición y fragilidad.</p>
+      <div class="card" id="escalasContainer">
+        <table class="report escalas-ref">
+          <tr><th>Área</th><th>Escala / Test</th><th>Evalúa</th></tr>
+          <tr><td>Cognición</td><td>MMSE</td><td>Estado cognitivo</td></tr>
+          <tr><td>Depresión</td><td>Yesavage</td><td>Síntomas depresivos</td></tr>
+          <tr><td>ABVD</td><td>Índice de Barthel</td><td>Independencia funcional</td></tr>
+          <tr><td>AIVD</td><td>Lawton y Brody</td><td>Actividades instrumentales</td></tr>
+          <tr><td>Movilidad</td><td>TUG</td><td>Movilidad y riesgo de caídas</td></tr>
+          <tr><td>Equilibrio</td><td>Berg</td><td>Equilibrio funcional</td></tr>
+          <tr><td>Marcha</td><td>Tinetti / POMA</td><td>Marcha y equilibrio</td></tr>
+          <tr><td>Rendimiento físico</td><td>SPPB</td><td>Función de miembros inferiores</td></tr>
+          <tr><td>Fuerza</td><td>Chair Stand Test</td><td>Fuerza funcional de MMII</td></tr>
+          <tr><td>Nutrición</td><td>MNA</td><td>Estado nutricional</td></tr>
+          <tr><td>Fragilidad</td><td>Fenotipo de Fried</td><td>Fragilidad física</td></tr>
+        </table>
+        <div class="noprint" style="margin-top:16px;"><button class="ghost" onclick="markDone('escalas')">Marcar módulo como revisado</button></div>
+      </div>
+      <p class="cite">Escalas seleccionadas por su uso estándar en Valoración Geriátrica Integral: Mahoney &amp; Barthel (1965); Lawton &amp; Brody (1969); Tinetti (1986); Podsiadlo &amp; Richardson (1991); Guralnik et al. (1994); Yesavage et al. (1983); Berg et al. (1992); Fried et al. (2001).</p>
     </section>
 
     <!-- ============ 3. NUTRICION ============ -->
@@ -453,22 +474,11 @@
       <p class="lede">Resumen ejecutivo de la V.I.G., generado a partir de todos los módulos completados. Imprime o exporta como PDF desde el navegador.</p>
       <div class="card noprint" style="margin-bottom:18px;">
         <h3>Anexos del informe</h3>
-        <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;">Sube aquí las imágenes y escribe las referencias; se incrustarán directamente en el informe y en el PDF exportado.</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-          <div>
-            <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Fotografía de la valoración</label>
-            <input type="file" accept="image/*" id="a_foto" onchange="handleAnexoUpload('fotoValoracion', this)">
-            <div id="a_foto_preview" style="margin-top:8px;"></div>
-          </div>
-          <div>
-            <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Consentimiento informado firmado</label>
-            <input type="file" accept="image/*,.pdf" id="a_consent" onchange="handleAnexoUpload('consentimientoFirmado', this)">
-            <div id="a_consent_preview" style="margin-top:8px;"></div>
-          </div>
-        </div>
-        <div style="margin-top:14px;">
-          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Referencias bibliográficas (APA/Vancouver)</label>
-          <textarea id="a_referencias" rows="3" style="width:100%;" placeholder="Pega aquí las referencias completas..." onchange="state.anexos.referencias=this.value; generarInforme();"></textarea>
+        <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;">Sube aquí la fotografía de la valoración; se incrustará directamente en el informe y en el PDF exportado.</p>
+        <div>
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Fotografía de la valoración</label>
+          <input type="file" accept="image/*" id="a_foto" onchange="handleAnexoUpload('fotoValoracion', this)">
+          <div id="a_foto_preview" style="margin-top:8px;"></div>
         </div>
       </div>
       <div class="noprint" style="margin-bottom:18px;display:flex;gap:10px;">
@@ -491,7 +501,7 @@
 const state = {
   paciente:null, escalas:{}, nutricion:{}, metabolismo:{}, hidratacion:{},
   mets:{}, balance:{}, dinamometria:{}, fragilidad:{},
-  anexos:{ fotoValoracion:null, consentimientoFirmado:null, referencias:'' }
+  anexos:{ fotoValoracion:null }
 };
 
 /* ============================================================
@@ -1074,23 +1084,14 @@ function generarConclusiones(){
 
 function generarAnexosHTML(){
   const a = state.anexos || {};
-  const bloque = (item, titulo) => {
-    if(!item) return `<p style="font-size:13px;color:var(--ink-soft);">${titulo}: no adjuntado.</p>`;
-    if(item.tipo && item.tipo.startsWith('image/')){
-      return `<div style="margin-bottom:10px;"><p style="font-size:13px;font-weight:600;margin-bottom:6px;">${titulo}</p><img src="${item.dataUrl}" style="max-width:100%;max-height:320px;border-radius:8px;border:1px solid var(--line);"></div>`;
-    }
-    return `<p style="font-size:13px;"><strong>${titulo}:</strong> archivo adjunto — ${item.nombre}</p>`;
-  };
-  const refs = (a.referencias||'').trim();
+  const item = a.fotoValoracion;
+  const contenido = !item
+    ? `<p style="font-size:13px;color:var(--ink-soft);">Fotografía de la valoración: no adjuntada.</p>`
+    : `<div class="anexo-img-wrap"><img src="${item.dataUrl}" class="anexo-img"></div>`;
   return `
-    <div class="card">
+    <div class="card anexo-card">
       <h3>Anexos</h3>
-      ${bloque(a.fotoValoracion, 'Fotografía de la valoración')}
-      ${bloque(a.consentimientoFirmado, 'Consentimiento informado firmado')}
-      <div style="margin-top:10px;">
-        <p style="font-size:13px;font-weight:600;margin-bottom:6px;">Referencias bibliográficas</p>
-        ${refs ? `<div style="white-space:pre-line;font-size:13px;line-height:1.6;">${refs}</div>` : `<p style="font-size:13px;color:var(--ink-soft);">Sin referencias registradas.</p>`}
-      </div>
+      ${contenido}
     </div>
   `;
 }
@@ -1125,7 +1126,7 @@ function descargarPDF(){
     margin: [10,10,10,10],
     filename: nombreArchivo,
     image: { type:'jpeg', quality:0.98 },
-    html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff' },
+    html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff', scrollX:0, scrollY:0, windowWidth: el.scrollWidth },
     jsPDF: { unit:'mm', format:'a4', orientation:'portrait' },
     pagebreak: { mode:['avoid-all','css','legacy'] }
   };
@@ -1144,7 +1145,6 @@ function descargarPDF(){
    INIT
    ============================================================ */
 renderNav();
-renderScales();
 renderMNA();
 updateProgress();
 </script>
