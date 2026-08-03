@@ -10,16 +10,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
   :root{
-    --ink:#0F1B2D;
-    --ink-soft:#516078;
-    --teal:#0EA394;
-    --teal-deep:#087367;
-    --teal-glow:#5EEAD4;
-    --violet:#6D5CE7;
-    --violet-soft:#EFECFD;
-    --bg:#F1F5F7;
+    --ink:#2E3338;
+    --ink-soft:#5B6470;
+    --teal:#66D1C4;
+    --teal-deep:#3FB6A8;
+    --teal-glow:#B9EDE5;
+    --violet:#4FBFB0;
+    --violet-soft:#E3F7F4;
+    --bg:#FFFFFF;
     --card:#FFFFFF;
-    --line:#E5EAEE;
+    --line:#E4E8EA;
     --coral:#FF6B4A;
     --coral-soft:#FFE9E2;
     --amber:#F0A93B;
@@ -37,50 +37,49 @@
   ::selection{background:var(--teal-glow);color:var(--ink);}
   ::-webkit-scrollbar{width:9px;height:9px;}
   ::-webkit-scrollbar-thumb{background:#C9D3DB;border-radius:20px;}
-  nav.sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);}
+  nav.sidebar::-webkit-scrollbar-thumb{background:var(--line);}
 
   /* ---------- LAYOUT ---------- */
   #app{display:flex;min-height:100vh;}
   nav.sidebar{
-    width:258px;flex-shrink:0;color:#fff;
-    background:linear-gradient(190deg,#0F1B2D 0%,#132540 55%,#0F1B2D 100%);
+    width:258px;flex-shrink:0;color:var(--ink);
+    background:#FFFFFF;border-right:1px solid var(--line);
     display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;overflow-x:hidden;
     z-index:10;
   }
   nav.sidebar::before{
     content:'';position:absolute;top:-80px;right:-90px;width:260px;height:260px;border-radius:50%;
-    background:radial-gradient(circle,rgba(94,234,212,.28) 0%,rgba(94,234,212,0) 70%);pointer-events:none;
+    background:radial-gradient(circle,rgba(102,209,196,.18) 0%,rgba(102,209,196,0) 70%);pointer-events:none;
   }
   nav.sidebar::after{
     content:'';position:absolute;bottom:-100px;left:-90px;width:240px;height:240px;border-radius:50%;
-    background:radial-gradient(circle,rgba(109,92,231,.22) 0%,rgba(109,92,231,0) 70%);pointer-events:none;
+    background:radial-gradient(circle,rgba(102,209,196,.12) 0%,rgba(102,209,196,0) 70%);pointer-events:none;
   }
-  nav.sidebar .brand{padding:28px 22px 16px;border-bottom:1px solid rgba(255,255,255,.1);position:relative;}
-  nav.sidebar .brand .tag{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--teal-glow);text-transform:uppercase;}
-  nav.sidebar .brand h1{font-family:var(--display);font-size:28px;font-weight:600;margin:6px 0 12px;line-height:1.1;
-    background:linear-gradient(100deg,#fff 30%,var(--teal-glow) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;}
-  .progress-track{height:6px;border-radius:6px;background:rgba(255,255,255,.12);overflow:hidden;}
-  .progress-fill{height:100%;border-radius:6px;width:0%;background:linear-gradient(90deg,var(--teal) 0%,var(--teal-glow) 100%);transition:width .5s var(--ease);}
-  .progress-label{font-family:var(--mono);font-size:10.5px;color:#93A3BC;margin-top:6px;letter-spacing:.04em;}
+  nav.sidebar .brand{padding:28px 22px 16px;border-bottom:1px solid var(--line);position:relative;}
+  nav.sidebar .brand .tag{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--teal-deep);text-transform:uppercase;}
+  nav.sidebar .brand h1{font-family:var(--display);font-size:28px;font-weight:600;margin:6px 0 12px;line-height:1.1;color:var(--ink);}
+  .progress-track{height:6px;border-radius:6px;background:var(--line);overflow:hidden;}
+  .progress-fill{height:100%;border-radius:6px;width:0%;background:linear-gradient(90deg,var(--teal) 0%,var(--teal-deep) 100%);transition:width .5s var(--ease);}
+  .progress-label{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);margin-top:6px;letter-spacing:.04em;}
 
   nav.sidebar .steps{list-style:none;margin:0;padding:14px 10px 20px;flex:1;position:relative;}
   nav.sidebar .steps li{margin-bottom:3px;}
   nav.sidebar button.navbtn{
-    width:100%;text-align:left;background:none;border:none;color:#B9C6D8;
+    width:100%;text-align:left;background:none;border:none;color:var(--ink-soft);
     padding:10px 12px;border-radius:10px;font-size:13.5px;font-family:var(--body);
     display:flex;align-items:center;gap:11px;cursor:pointer;transition:background .18s var(--ease),color .18s,transform .18s;
   }
-  nav.sidebar button.navbtn:hover{background:rgba(255,255,255,.07);color:#fff;transform:translateX(2px);}
-  nav.sidebar button.navbtn.active{background:linear-gradient(100deg,var(--teal) 0%,var(--teal-deep) 100%);color:#fff;font-weight:600;box-shadow:0 4px 14px rgba(14,163,148,.35);}
+  nav.sidebar button.navbtn:hover{background:var(--violet-soft);color:var(--teal-deep);transform:translateX(2px);}
+  nav.sidebar button.navbtn.active{background:linear-gradient(100deg,var(--teal) 0%,var(--teal-deep) 100%);color:#fff;font-weight:600;box-shadow:0 4px 14px rgba(102,209,196,.45);}
   nav.sidebar button.navbtn .num{
     font-family:var(--mono);font-size:11px;width:22px;height:22px;border-radius:50%;
-    display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.1);flex-shrink:0;transition:background .2s,transform .3s var(--ease);
+    display:flex;align-items:center;justify-content:center;background:var(--line);color:var(--ink-soft);flex-shrink:0;transition:background .2s,transform .3s var(--ease);
   }
-  nav.sidebar button.navbtn.active .num{background:rgba(255,255,255,.25);}
-  nav.sidebar button.navbtn.done .num{background:var(--teal-glow);color:#0B3B34;transform:scale(1.05);}
+  nav.sidebar button.navbtn.active .num{background:rgba(255,255,255,.3);color:#fff;}
+  nav.sidebar button.navbtn.done .num{background:var(--teal-glow);color:var(--teal-deep);transform:scale(1.05);}
   nav.sidebar button.navbtn.done:not(.active) .num svg{display:none;}
   nav.sidebar button.navbtn.done:not(.active) .num::after{content:'✓';font-weight:800;font-size:12px;}
-  nav.sidebar .footer-note{padding:14px 22px 20px;font-size:10.5px;color:#7C8CA4;border-top:1px solid rgba(255,255,255,.1);position:relative;line-height:1.5;}
+  nav.sidebar .footer-note{padding:14px 22px 20px;font-size:10.5px;color:var(--ink-soft);border-top:1px solid var(--line);position:relative;line-height:1.5;}
 
   main{flex:1;min-width:0;}
   header.topbar{
@@ -219,39 +218,39 @@
 
   /* ---------- HOME / DASHBOARD ---------- */
   #dashboardScreen{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;
-    background:linear-gradient(190deg,#0F1B2D 0%,#132540 55%,#0F1B2D 100%);padding:60px 24px;position:relative;overflow:hidden;}
+    background:#FFFFFF;padding:60px 24px;position:relative;overflow:hidden;}
   #dashboardScreen::before{content:'';position:absolute;top:-120px;right:-120px;width:420px;height:420px;border-radius:50%;
-    background:radial-gradient(circle,rgba(94,234,212,.22) 0%,rgba(94,234,212,0) 70%);pointer-events:none;}
+    background:radial-gradient(circle,rgba(102,209,196,.16) 0%,rgba(102,209,196,0) 70%);pointer-events:none;}
   #dashboardScreen::after{content:'';position:absolute;bottom:-140px;left:-120px;width:420px;height:420px;border-radius:50%;
-    background:radial-gradient(circle,rgba(109,92,231,.20) 0%,rgba(109,92,231,0) 70%);pointer-events:none;}
+    background:radial-gradient(circle,rgba(102,209,196,.12) 0%,rgba(102,209,196,0) 70%);pointer-events:none;}
   .dash-inner{position:relative;z-index:1;width:100%;max-width:960px;text-align:center;}
   .dash-logo{width:64px;height:64px;border-radius:18px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;
-    background:linear-gradient(135deg,var(--teal) 0%,var(--violet) 100%);color:#fff;font-family:var(--mono);font-weight:700;
-    font-size:16px;letter-spacing:.03em;box-shadow:0 10px 30px rgba(14,163,148,.35);}
-  #dashboardScreen .eyebrow{justify-content:center;color:var(--teal-glow);}
-  #dashboardScreen .eyebrow::before{background:var(--teal-glow);}
-  .dash-title{font-family:var(--display);font-weight:600;font-size:40px;line-height:1.15;margin:6px 0 10px;
-    background:linear-gradient(100deg,#fff 30%,var(--teal-glow) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;}
-  .dash-sub{color:#B9C6D8;font-size:15px;max-width:520px;margin:0 auto 40px;line-height:1.55;}
+    background:#FFFFFF;border:1.5px solid var(--line);color:var(--teal);font-family:var(--mono);font-weight:700;
+    font-size:16px;letter-spacing:.03em;box-shadow:0 10px 30px rgba(102,209,196,.25);}
+  #dashboardScreen .eyebrow{justify-content:center;color:var(--teal-deep);}
+  #dashboardScreen .eyebrow::before{background:var(--teal-deep);}
+  .dash-title{font-family:var(--display);font-weight:600;font-size:40px;line-height:1.15;margin:6px 0 10px;color:var(--ink);}
+  .dash-sub{color:var(--ink-soft);font-size:15px;max-width:520px;margin:0 auto 40px;line-height:1.55;}
   .dash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;text-align:left;}
-  .dash-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:22px 20px;
-    cursor:pointer;color:#fff;font-family:var(--body);transition:transform .2s var(--ease),background .2s,border-color .2s;
-    display:flex;flex-direction:column;gap:8px;backdrop-filter:blur(6px);}
-  .dash-card:hover{transform:translateY(-3px);background:rgba(255,255,255,.09);border-color:rgba(94,234,212,.4);}
+  .dash-card{background:#FFFFFF;border:1px solid var(--line);border-radius:16px;padding:22px 20px;
+    cursor:pointer;color:var(--ink);font-family:var(--body);transition:transform .2s var(--ease),background .2s,border-color .2s;
+    display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 2px rgba(46,51,56,.04);}
+  .dash-card:hover{transform:translateY(-3px);background:var(--violet-soft);border-color:var(--teal-glow);}
   .dash-card .dash-icon{font-size:24px;line-height:1;}
   .dash-card .dash-card-title{font-weight:700;font-size:15px;}
-  .dash-card .dash-card-desc{font-size:12.5px;color:#9FB0C6;line-height:1.5;}
-  .dash-card.primary{background:linear-gradient(100deg,var(--teal) 0%,var(--teal-deep) 100%);border-color:transparent;
-    box-shadow:0 10px 26px rgba(14,163,148,.35);}
-  .dash-card.primary .dash-card-desc{color:rgba(255,255,255,.85);}
-  .dash-panel{margin-top:34px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:16px;
-    padding:20px 22px;text-align:left;color:#fff;}
+  .dash-card .dash-card-desc{font-size:12.5px;color:var(--ink-soft);line-height:1.5;}
+  .dash-card.primary{background:linear-gradient(100deg,var(--teal) 0%,var(--teal-deep) 100%);border-color:transparent;color:#fff;
+    box-shadow:0 10px 26px rgba(102,209,196,.35);}
+  .dash-card.primary .dash-card-title{color:#fff;}
+  .dash-card.primary .dash-card-desc{color:rgba(255,255,255,.9);}
+  .dash-panel{margin-top:34px;background:#FFFFFF;border:1px solid var(--line);border-radius:16px;
+    padding:20px 22px;text-align:left;color:var(--ink);box-shadow:0 1px 2px rgba(46,51,56,.04);}
   .dash-panel h3{margin:0 0 14px;font-size:15px;font-family:var(--body);}
-  .dash-patient-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px dashed rgba(255,255,255,.14);font-size:13px;gap:10px;}
+  .dash-patient-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px dashed var(--line);font-size:13px;gap:10px;}
   .dash-patient-row:last-child{border-bottom:none;}
   .dash-patient-row .dp-name{font-weight:600;}
-  .dash-patient-row .dp-meta{color:#9FB0C6;font-family:var(--mono);font-size:11.5px;}
-  .dash-empty{color:#9FB0C6;font-size:13px;padding:6px 0;}
+  .dash-patient-row .dp-meta{color:var(--ink-soft);font-family:var(--mono);font-size:11.5px;}
+  .dash-empty{color:var(--ink-soft);font-size:13px;padding:6px 0;}
   .dash-back{margin-top:36px;}
   .btn-home{background:none;border:1.5px solid var(--line);color:var(--ink-soft);padding:8px 14px;border-radius:9px;
     font-size:12.5px;font-weight:600;cursor:pointer;font-family:var(--body);display:flex;align-items:center;gap:6px;transition:all .18s var(--ease);}
@@ -264,22 +263,22 @@
 
   /* ---------- MODULO: PACIENTES REGISTRADOS ---------- */
   .pac-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;}
-  .pac-toolbar input[type="text"]{max-width:260px;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:#fff;}
-  .pac-toolbar input[type="text"]::placeholder{color:#8A97AA;}
-  .pac-toolbar select{max-width:210px;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:#fff;}
-  .pac-count{font-family:var(--mono);font-size:11.5px;color:#9FB0C6;margin-left:auto;}
-  table.pac-table{width:100%;border-collapse:collapse;font-size:13px;color:#fff;}
-  table.pac-table th{text-align:left;padding:9px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#9FB0C6;border-bottom:1px solid rgba(255,255,255,.14);font-weight:600;}
-  table.pac-table td{padding:11px 10px;border-bottom:1px dashed rgba(255,255,255,.12);vertical-align:middle;}
+  .pac-toolbar input[type="text"]{max-width:260px;background:#FFFFFF;border-color:var(--line);color:var(--ink);}
+  .pac-toolbar input[type="text"]::placeholder{color:var(--ink-soft);}
+  .pac-toolbar select{max-width:210px;background:#FFFFFF;border-color:var(--line);color:var(--ink);}
+  .pac-count{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);margin-left:auto;}
+  table.pac-table{width:100%;border-collapse:collapse;font-size:13px;color:var(--ink);}
+  table.pac-table th{text-align:left;padding:9px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);border-bottom:1px solid var(--line);font-weight:600;}
+  table.pac-table td{padding:11px 10px;border-bottom:1px dashed var(--line);vertical-align:middle;}
   table.pac-table tr:last-child td{border-bottom:none;}
-  table.pac-table tr:hover td{background:rgba(255,255,255,.03);}
+  table.pac-table tr:hover td{background:var(--violet-soft);}
   .pac-actions{display:flex;gap:4px;flex-wrap:wrap;}
-  .pac-actions button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#fff;
+  .pac-actions button{background:#FFFFFF;border:1px solid var(--line);color:var(--ink-soft);
     width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:13.5px;display:flex;align-items:center;justify-content:center;transition:all .15s var(--ease);}
-  .pac-actions button:hover{background:var(--teal);border-color:var(--teal);transform:translateY(-1px);}
-  .pac-actions button.danger:hover{background:var(--coral);border-color:var(--coral);}
+  .pac-actions button:hover{background:var(--teal);border-color:var(--teal);color:#fff;transform:translateY(-1px);}
+  .pac-actions button.danger:hover{background:var(--coral);border-color:var(--coral);color:#fff;}
   .pac-actions button:disabled{opacity:.35;cursor:not-allowed;}
-  .pac-actions button:disabled:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);transform:none;}
+  .pac-actions button:disabled:hover{background:#FFFFFF;border-color:var(--line);color:var(--ink-soft);transform:none;}
 
   /* ---------- EXPEDIENTE CLÍNICO (vista de solo lectura) ---------- */
   #expedienteScreen{display:none;min-height:100vh;background:var(--bg);}
@@ -293,9 +292,9 @@
     .pac-toolbar .pac-count{margin-left:0;}
     table.pac-table, table.pac-table thead, table.pac-table tbody, table.pac-table th, table.pac-table td, table.pac-table tr{display:block;}
     table.pac-table thead{display:none;}
-    table.pac-table tr{border-bottom:1px solid rgba(255,255,255,.14);padding:10px 0;margin-bottom:6px;}
+    table.pac-table tr{border-bottom:1px solid var(--line);padding:10px 0;margin-bottom:6px;}
     table.pac-table td{border-bottom:none;padding:3px 0;}
-    table.pac-table td::before{content:attr(data-label);display:block;font-family:var(--mono);font-size:10px;color:#9FB0C6;text-transform:uppercase;}
+    table.pac-table td::before{content:attr(data-label);display:block;font-family:var(--mono);font-size:10px;color:var(--ink-soft);text-transform:uppercase;}
   }
 </style>
 </head>
@@ -1021,7 +1020,7 @@ function dashConfiguracion(){
   const total = listarPacientesCompletos().length;
   panel.innerHTML = `
     <h3>⚙ Configuración</h3>
-    <div style="font-size:13px;color:#B9C6D8;line-height:1.7;">
+    <div style="font-size:13px;color:var(--ink-soft);line-height:1.7;">
       V.I.G. · Sistema de Evaluación Funcional para Fisioterapia<br>
       Los expedientes de pacientes (registro, historia clínica, escalas y resultados) se guardan en este dispositivo (localStorage). Actualmente hay ${total} paciente${total===1?'':'s'} guardado${total===1?'':'s'}.
     </div>
@@ -1365,7 +1364,7 @@ function restaurarResultadosVisuales(){
   if(n.proteina!=null) put('n_result', `<div class="result good"><span class="big">${n.proteina.toFixed(0)} g proteína/día</span><span class="big" style="margin-top:6px;">${(n.calorias||0).toFixed(0)} kcal/día</span><span class="tag">Requerimiento estimado (guardado)</span></div>`);
   if(n.mna!=null) put('mna_result', `<div class="result ${n.mnaTxt==='Estado nutricional normal'?'good':(n.mnaTxt==='Riesgo de malnutrición'?'mid':'risk')}"><span class="big">${n.mna} / 14</span><span class="tag">${n.mnaTxt}</span></div>`);
   if(n.smm!=null) put('mm_result', `<div class="result good"><span class="big">${n.smm.toFixed(1)} kg</span><span class="tag">SMI: ${n.smi.toFixed(2)} kg/m²</span></div>`);
-  if(m.bmr!=null) put('m_result', `<div class="result good"><span class="big">TMB: ${m.bmr.toFixed(0)} kcal/día</span><span class="big" style="margin-top:6px;">GET: ${m.get.toFixed(0)} kcal/día</span><span class="tag">Gasto Energético Total (guardado)</span></div>`);
+  if(m.bmr!=null) put('m_result', `<div class="result good"><span class="big">TMB: ${m.bmr.toFixed(0)} kcal/día</span><span class="big" style="margin-top:6px;">GET: ${m.get.toFixed(0)} kcal/día</span><span class="tag">GET = TMB × Factor de actividad (guardado)</span></div>`);
   if(h.litros!=null) put('h_result', `<div class="result good"><span class="big">${h.litros.toFixed(2)} L / día</span></div>`);
   if(met.valor!=null) put('mets_result', `<div class="result good"><span class="big">${met.kcal.toFixed(0)} kcal en la sesión</span><span class="tag">${met.valor} METs</span></div>`);
   if(bal.pct!=null) put('bal_result', `<div class="result ${bal.txt==='Balance energético adecuado'?'good':(bal.txt&&bal.txt.includes('Superávit')?'mid':'risk')}"><span class="big">${bal.pct.toFixed(0)}% del GET</span><span class="tag">${bal.diff>=0?'+':''}${bal.diff.toFixed(0)} kcal/día — ${bal.txt}</span></div>`);
@@ -1740,7 +1739,7 @@ function calcMetabolismo(){
   document.getElementById('m_result').innerHTML = `<div class="result good">
     <span class="big">TMB: ${bmr.toFixed(0)} kcal/día</span>
     <span class="big" style="margin-top:6px;">GET: ${get.toFixed(0)} kcal/día</span>
-    <span class="tag">Gasto Energético Total (Mifflin-St Jeor × factor de actividad)</span></div>`;
+    <span class="tag">GET = TMB × Factor de actividad</span></div>`;
 }
 
 /* ============================================================
