@@ -3,7 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Evita que el HTML principal quede cacheado (por el navegador, WebView de la APK,
+     o proxies intermedios). Los recursos estáticos (fuentes, CDN de jsPDF) no se tocan. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>V.I.G. · Valoración Integral Geriátrica</title>
+<script>
+/* Aplica el tema guardado (claro/oscuro) ANTES de pintar la página, para que no haya
+   parpadeo de tema claro seguido de un cambio a oscuro. No toca ningún otro dato. */
+(function(){
+  try{
+    if(localStorage.getItem('vigcare_theme') === 'dark'){
+      document.documentElement.setAttribute('data-theme','dark');
+    }
+  }catch(e){ /* si localStorage no está disponible, se ignora y queda el tema claro por defecto */ }
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -26,34 +42,74 @@
     --amber-soft:#FDF1DC;
     --green:#22A97A;
     --green-soft:#E3F6ED;
+    --sidebar-bg:#FFFFFF;
+    --input-bg:#FCFDFD;
+    --topbar-bg:rgba(255,255,255,.85);
+    --scrollbar-thumb:#C9D3DB;
+    --hover-row:#FAFCFD;
+    --pill-bg:#EDF1F2;
+    --cite-color:#8A97A8;
+    --placeholder:#8B96A3;
+    --shadow-rgb:46,51,56;
+    --focus-rgb:102,209,196;
     --mono:'IBM Plex Mono', monospace;
     --display:'Fraunces', serif;
     --body:'Inter', sans-serif;
     --ease:cubic-bezier(.22,1,.36,1);
   }
+  /* ---------- MODO OSCURO ----------
+     Mismo sistema de variables: solo se redefinen los valores, ningún
+     selector, layout ni tamaño cambia. Los colores de estado clínico
+     (riesgo/alerta/éxito: coral, ámbar, verde) se mantienen igual en
+     ambos temas a propósito, para no alterar el significado clínico
+     de esos indicadores. */
+  [data-theme="dark"]{
+    --ink:#FFFFFF;
+    --ink-soft:#CBD5E1;
+    --teal:#4FD1C5;
+    --teal-deep:#38B2A6;
+    --teal-glow:#1F4B47;
+    --violet:#4FD1C5;
+    --violet-soft:rgba(79,209,197,.14);
+    --bg:#0F172A;
+    --card:#1E293B;
+    --line:#2A3B52;
+    --sidebar-bg:#111827;
+    --input-bg:#16213A;
+    --topbar-bg:rgba(15,23,42,.85);
+    --scrollbar-thumb:#334155;
+    --hover-row:rgba(79,209,197,.08);
+    --pill-bg:#233045;
+    --cite-color:#94A3B8;
+    --placeholder:#94A3B8;
+    --shadow-rgb:0,0,0;
+    --focus-rgb:79,209,197;
+  }
+  [data-theme="dark"] input::placeholder,
+  [data-theme="dark"] textarea::placeholder{color:var(--placeholder);}
   *{box-sizing:border-box;}
   body{margin:0;font-family:var(--body);background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;}
   a{color:inherit;}
   ::selection{background:var(--teal-glow);color:var(--ink);}
   ::-webkit-scrollbar{width:9px;height:9px;}
-  ::-webkit-scrollbar-thumb{background:#C9D3DB;border-radius:20px;}
+  ::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:20px;}
   nav.sidebar::-webkit-scrollbar-thumb{background:var(--line);}
 
   /* ---------- LAYOUT ---------- */
   #app{display:flex;min-height:100vh;}
   nav.sidebar{
     width:258px;flex-shrink:0;color:var(--ink);
-    background:#FFFFFF;border-right:1px solid var(--line);
+    background:var(--sidebar-bg);border-right:1px solid var(--line);
     display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;overflow-x:hidden;
     z-index:10;
   }
   nav.sidebar::before{
     content:'';position:absolute;top:-80px;right:-90px;width:260px;height:260px;border-radius:50%;
-    background:radial-gradient(circle,rgba(102,209,196,.18) 0%,rgba(102,209,196,0) 70%);pointer-events:none;
+    background:radial-gradient(circle,rgba(var(--focus-rgb),.18) 0%,rgba(102,209,196,0) 70%);pointer-events:none;
   }
   nav.sidebar::after{
     content:'';position:absolute;bottom:-100px;left:-90px;width:240px;height:240px;border-radius:50%;
-    background:radial-gradient(circle,rgba(102,209,196,.12) 0%,rgba(102,209,196,0) 70%);pointer-events:none;
+    background:radial-gradient(circle,rgba(var(--focus-rgb),.12) 0%,rgba(102,209,196,0) 70%);pointer-events:none;
   }
   nav.sidebar .brand{padding:28px 22px 16px;border-bottom:1px solid var(--line);position:relative;}
   nav.sidebar .brand .tag{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--teal-deep);text-transform:uppercase;}
@@ -70,7 +126,7 @@
     display:flex;align-items:center;gap:11px;cursor:pointer;transition:background .18s var(--ease),color .18s,transform .18s;
   }
   nav.sidebar button.navbtn:hover{background:var(--violet-soft);color:var(--teal-deep);transform:translateX(2px);}
-  nav.sidebar button.navbtn.active{background:linear-gradient(100deg,var(--teal) 0%,var(--teal-deep) 100%);color:#fff;font-weight:600;box-shadow:0 4px 14px rgba(102,209,196,.45);}
+  nav.sidebar button.navbtn.active{background:linear-gradient(100deg,var(--teal) 0%,var(--teal-deep) 100%);color:#fff;font-weight:600;box-shadow:0 4px 14px rgba(var(--focus-rgb),.45);}
   nav.sidebar button.navbtn .num{
     font-family:var(--mono);font-size:11px;width:22px;height:22px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;background:var(--line);color:var(--ink-soft);flex-shrink:0;transition:background .2s,transform .3s var(--ease);
@@ -83,14 +139,14 @@
 
   main{flex:1;min-width:0;}
   header.topbar{
-    background:rgba(255,255,255,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+    background:var(--topbar-bg);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
     padding:14px 34px;display:flex;justify-content:space-between;align-items:center;
     position:sticky;top:0;z-index:5;
   }
   header.topbar .pname{font-weight:700;font-size:15px;}
   header.topbar .pmeta{font-family:var(--mono);font-size:12px;color:var(--ink-soft);}
   header.topbar .flags{display:flex;gap:8px;}
-  .pill{font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:20px;background:#EDF1F2;color:var(--ink-soft);transition:transform .2s;}
+  .pill{font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:20px;background:var(--pill-bg);color:var(--ink-soft);transition:transform .2s;}
   .pill.warn{background:var(--coral-soft);color:#C4451F;}
   .pill.ok{background:var(--green-soft);color:var(--teal-deep);}
 
@@ -113,9 +169,9 @@
   p.lede{color:var(--ink-soft);margin:0 0 28px;max-width:640px;line-height:1.55;}
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:20px;
-    box-shadow:0 1px 2px rgba(15,27,45,.04);transition:box-shadow .25s var(--ease),transform .25s var(--ease);
+    box-shadow:0 1px 2px rgba(var(--shadow-rgb),.04);transition:box-shadow .25s var(--ease),transform .25s var(--ease);
     page-break-inside:avoid;break-inside:avoid;}
-  .card:hover{box-shadow:0 10px 28px rgba(15,27,45,.07);transform:translateY(-1px);}
+  .card:hover{box-shadow:0 10px 28px rgba(var(--shadow-rgb),.07);transform:translateY(-1px);}
   .card h3{font-size:16px;margin:0 0 16px;font-weight:700;display:flex;align-items:center;gap:8px;}
   .anexo-img-wrap{page-break-inside:avoid;break-inside:avoid;text-align:center;}
   .anexo-img{max-width:100%;max-height:820px;width:auto;height:auto;object-fit:contain;border-radius:10px;border:1px solid var(--line);display:inline-block;}
@@ -125,10 +181,10 @@
   label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:5px;}
   input,select,textarea{
     width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;
-    font-family:var(--body);font-size:14px;background:#FCFDFD;color:var(--ink);
+    font-family:var(--body);font-size:14px;background:var(--input-bg);color:var(--ink);
     transition:border-color .18s,box-shadow .18s;
   }
-  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 4px rgba(14,163,148,.13);}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 4px rgba(var(--focus-rgb),.13);}
   .field{margin-bottom:14px;}
   textarea{resize:vertical;min-height:60px;}
   .field.computed input{background:var(--green-soft);color:var(--teal-deep);font-weight:700;border-color:var(--teal-glow);cursor:default;}
@@ -144,11 +200,11 @@
   button.primary{
     background:linear-gradient(100deg,var(--teal) 0%,var(--teal-deep) 100%);color:#fff;border:none;padding:12px 22px;border-radius:10px;
     font-weight:700;font-size:14px;cursor:pointer;font-family:var(--body);
-    box-shadow:0 4px 14px rgba(14,163,148,.3);transition:transform .15s var(--ease),box-shadow .15s;
+    box-shadow:0 4px 14px rgba(var(--focus-rgb),.3);transition:transform .15s var(--ease),box-shadow .15s;
   }
-  button.primary:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(14,163,148,.4);}
+  button.primary:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(var(--focus-rgb),.4);}
   button.primary:active{transform:translateY(0) scale(.98);}
-  button.ghost{background:#fff;border:1.5px solid var(--line);padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;color:var(--ink-soft);font-family:var(--body);transition:all .18s var(--ease);}
+  button.ghost{background:var(--card);border:1.5px solid var(--line);padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;color:var(--ink-soft);font-family:var(--body);transition:all .18s var(--ease);}
   button.ghost:hover{border-color:var(--teal);color:var(--teal-deep);background:var(--green-soft);transform:translateY(-1px);}
   button.ghost:active{transform:translateY(0) scale(.98);}
 
@@ -161,9 +217,9 @@
   .result.mid{background:var(--amber-soft);border-left-color:var(--amber);}
   .result.good{background:var(--green-soft);border-left-color:var(--green);}
   .result .big{font-family:var(--mono);font-size:27px;font-weight:600;display:block;margin-bottom:4px;color:var(--ink);}
-  .result .tag{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:12px;background:rgba(15,27,45,.06);display:inline-block;}
+  .result .tag{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:12px;background:rgba(var(--shadow-rgb),.06);display:inline-block;}
 
-  .cite{font-size:11.5px;color:#8A97A8;margin-top:10px;font-style:italic;}
+  .cite{font-size:11.5px;color:var(--cite-color);margin-top:10px;font-style:italic;}
 
   .scale-block{border-top:1px solid var(--line);padding-top:18px;margin-top:18px;}
   .scale-block:first-child{border-top:none;margin-top:0;padding-top:0;}
@@ -176,8 +232,8 @@
   table.report{width:100%;border-collapse:collapse;font-size:13.5px;}
   table.report th,table.report td{text-align:left;padding:10px 10px;border-bottom:1px solid var(--line);}
   table.report th{color:var(--ink-soft);font-weight:600;width:46%;}
-  table.report tr:hover td, table.report tr:hover th{background:#FAFCFD;}
-  table.escalas-ref th{width:auto;color:var(--ink);background:#FAFCFD;}
+  table.report tr:hover td, table.report tr:hover th{background:var(--hover-row);}
+  table.escalas-ref th{width:auto;color:var(--ink);background:var(--hover-row);}
   table.escalas-ref td:first-child{font-weight:600;}
 
   .gauge-wrap{display:flex;align-items:center;gap:22px;flex-wrap:wrap;}
@@ -218,21 +274,21 @@
 
   /* ---------- HOME / DASHBOARD ---------- */
   #dashboardScreen{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;
-    background:#FFFFFF;padding:60px 24px;position:relative;overflow:hidden;}
+    background:var(--bg);padding:60px 24px;position:relative;overflow:hidden;}
   #dashboardScreen::before{content:'';position:absolute;top:-120px;right:-120px;width:420px;height:420px;border-radius:50%;
-    background:radial-gradient(circle,rgba(102,209,196,.16) 0%,rgba(102,209,196,0) 70%);pointer-events:none;}
+    background:radial-gradient(circle,rgba(var(--focus-rgb),.16) 0%,rgba(102,209,196,0) 70%);pointer-events:none;}
   #dashboardScreen::after{content:'';position:absolute;bottom:-140px;left:-120px;width:420px;height:420px;border-radius:50%;
-    background:radial-gradient(circle,rgba(102,209,196,.12) 0%,rgba(102,209,196,0) 70%);pointer-events:none;}
+    background:radial-gradient(circle,rgba(var(--focus-rgb),.12) 0%,rgba(102,209,196,0) 70%);pointer-events:none;}
   .dash-inner{position:relative;z-index:1;width:100%;max-width:960px;text-align:center;}
   .dash-logo{width:64px;height:64px;border-radius:18px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;
-    background:#FFFFFF;border:1.5px solid var(--line);color:var(--teal);font-family:var(--mono);font-weight:700;
-    font-size:16px;letter-spacing:.03em;box-shadow:0 10px 30px rgba(102,209,196,.25);}
+    background:var(--card);border:1.5px solid var(--line);color:var(--teal);font-family:var(--mono);font-weight:700;
+    font-size:16px;letter-spacing:.03em;box-shadow:0 10px 30px rgba(var(--focus-rgb),.25);}
   #dashboardScreen .eyebrow{justify-content:center;color:var(--teal-deep);}
   #dashboardScreen .eyebrow::before{background:var(--teal-deep);}
   .dash-title{font-family:var(--display);font-weight:600;font-size:40px;line-height:1.15;margin:6px 0 10px;color:var(--ink);}
   .dash-sub{color:var(--ink-soft);font-size:15px;max-width:520px;margin:0 auto 40px;line-height:1.55;}
   .dash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;text-align:left;}
-  .dash-card{background:#FFFFFF;border:1px solid var(--line);border-radius:16px;padding:22px 20px;
+  .dash-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 20px;
     cursor:pointer;color:var(--ink);font-family:var(--body);transition:transform .2s var(--ease),background .2s,border-color .2s;
     display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 2px rgba(46,51,56,.04);}
   .dash-card:hover{transform:translateY(-3px);background:var(--violet-soft);border-color:var(--teal-glow);}
@@ -240,10 +296,10 @@
   .dash-card .dash-card-title{font-weight:700;font-size:15px;}
   .dash-card .dash-card-desc{font-size:12.5px;color:var(--ink-soft);line-height:1.5;}
   .dash-card.primary{background:linear-gradient(100deg,var(--teal) 0%,var(--teal-deep) 100%);border-color:transparent;color:#fff;
-    box-shadow:0 10px 26px rgba(102,209,196,.35);}
+    box-shadow:0 10px 26px rgba(var(--focus-rgb),.35);}
   .dash-card.primary .dash-card-title{color:#fff;}
   .dash-card.primary .dash-card-desc{color:rgba(255,255,255,.9);}
-  .dash-panel{margin-top:34px;background:#FFFFFF;border:1px solid var(--line);border-radius:16px;
+  .dash-panel{margin-top:34px;background:var(--card);border:1px solid var(--line);border-radius:16px;
     padding:20px 22px;text-align:left;color:var(--ink);box-shadow:0 1px 2px rgba(46,51,56,.04);}
   .dash-panel h3{margin:0 0 14px;font-size:15px;font-family:var(--body);}
   .dash-patient-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px dashed var(--line);font-size:13px;gap:10px;}
@@ -251,6 +307,12 @@
   .dash-patient-row .dp-name{font-weight:600;}
   .dash-patient-row .dp-meta{color:var(--ink-soft);font-family:var(--mono);font-size:11.5px;}
   .dash-empty{color:var(--ink-soft);font-size:13px;padding:6px 0;}
+  .theme-switch{display:flex;gap:8px;}
+  .theme-opt{flex:1;background:var(--input-bg);border:1.5px solid var(--line);color:var(--ink-soft);
+    padding:10px 14px;border-radius:9px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:var(--body);
+    transition:all .18s var(--ease);}
+  .theme-opt:hover{border-color:var(--teal);color:var(--teal-deep);}
+  .theme-opt.active{background:linear-gradient(100deg,var(--teal) 0%,var(--teal-deep) 100%);border-color:transparent;color:#fff;}
   .dash-back{margin-top:36px;}
   .btn-home{background:none;border:1.5px solid var(--line);color:var(--ink-soft);padding:8px 14px;border-radius:9px;
     font-size:12.5px;font-weight:600;cursor:pointer;font-family:var(--body);display:flex;align-items:center;gap:6px;transition:all .18s var(--ease);}
@@ -263,9 +325,9 @@
 
   /* ---------- MODULO: PACIENTES REGISTRADOS ---------- */
   .pac-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;}
-  .pac-toolbar input[type="text"]{max-width:260px;background:#FFFFFF;border-color:var(--line);color:var(--ink);}
+  .pac-toolbar input[type="text"]{max-width:260px;background:var(--input-bg);border-color:var(--line);color:var(--ink);}
   .pac-toolbar input[type="text"]::placeholder{color:var(--ink-soft);}
-  .pac-toolbar select{max-width:210px;background:#FFFFFF;border-color:var(--line);color:var(--ink);}
+  .pac-toolbar select{max-width:210px;background:var(--input-bg);border-color:var(--line);color:var(--ink);}
   .pac-count{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);margin-left:auto;}
   table.pac-table{width:100%;border-collapse:collapse;font-size:13px;color:var(--ink);}
   table.pac-table th{text-align:left;padding:9px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);border-bottom:1px solid var(--line);font-weight:600;}
@@ -273,12 +335,12 @@
   table.pac-table tr:last-child td{border-bottom:none;}
   table.pac-table tr:hover td{background:var(--violet-soft);}
   .pac-actions{display:flex;gap:4px;flex-wrap:wrap;}
-  .pac-actions button{background:#FFFFFF;border:1px solid var(--line);color:var(--ink-soft);
+  .pac-actions button{background:var(--card);border:1px solid var(--line);color:var(--ink-soft);
     width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:13.5px;display:flex;align-items:center;justify-content:center;transition:all .15s var(--ease);}
   .pac-actions button:hover{background:var(--teal);border-color:var(--teal);color:#fff;transform:translateY(-1px);}
   .pac-actions button.danger:hover{background:var(--coral);border-color:var(--coral);color:#fff;}
   .pac-actions button:disabled{opacity:.35;cursor:not-allowed;}
-  .pac-actions button:disabled:hover{background:#FFFFFF;border-color:var(--line);color:var(--ink-soft);transform:none;}
+  .pac-actions button:disabled:hover{background:var(--card);border-color:var(--line);color:var(--ink-soft);transform:none;}
 
   /* ---------- EXPEDIENTE CLÍNICO (vista de solo lectura) ---------- */
   #expedienteScreen{display:none;min-height:100vh;background:var(--bg);}
@@ -738,6 +800,93 @@
 </div>
 <script>
 /* ============================================================
+   VERSIÓN DE LA APP (control de actualizaciones)
+   ------------------------------------------------------------
+   Súbela manualmente (fecha o número) cada vez que publiques una
+   nueva versión del index.html. Es lo que permite que la APK
+   detecte que hay contenido nuevo — ver iniciarComprobacionActualizaciones()
+   más abajo. No es un dato de paciente, no toca PACIENTES_KEY.
+   ============================================================ */
+const APP_VERSION = '2026.08.03-1';
+
+/* ============================================================
+   TEMA (claro / oscuro)
+   ------------------------------------------------------------
+   Usa data-theme="dark" en <html> + variables CSS (ver <style>).
+   Se guarda en localStorage bajo una clave propia, separada de
+   PACIENTES_KEY, así que nunca interfiere con el expediente clínico.
+   El tema ya se aplica de forma síncrona en <head> (antes de pintar)
+   para evitar parpadeos; estas funciones son las que usa la UI de
+   Configuración para cambiarlo en caliente.
+   ============================================================ */
+const TEMA_KEY = 'vigcare_theme';
+function obtenerTema(){
+  try{ return localStorage.getItem(TEMA_KEY) === 'dark' ? 'dark' : 'light'; }
+  catch(e){ return 'light'; }
+}
+function establecerTema(t){
+  const tema = (t === 'dark') ? 'dark' : 'light';
+  if(tema === 'dark') document.documentElement.setAttribute('data-theme','dark');
+  else document.documentElement.removeAttribute('data-theme');
+  try{ localStorage.setItem(TEMA_KEY, tema); }catch(e){ /* si falla, el tema igual se aplica visualmente en esta sesión */ }
+  if(document.getElementById('dashPanel') && document.getElementById('dashPanel').style.display !== 'none'){
+    dashConfiguracion(); // refresca el panel para reflejar el botón activo
+  }
+}
+function initTema(){
+  // Sincroniza el atributo por si acaso (ya se aplicó en <head>, esto es un refuerzo idempotente).
+  if(obtenerTema() === 'dark') document.documentElement.setAttribute('data-theme','dark');
+}
+
+/* ============================================================
+   ACTUALIZACIÓN AUTOMÁTICA (APK / WebView)
+   ------------------------------------------------------------
+   Este proyecto es un único archivo HTML estático: NO usa Service
+   Worker, PWA, Cache Storage ni Workbox (se revisó todo el código
+   y no existe ningún mecanismo de caché propio). La APK (generada
+   con Median, ver comentario en "NAVEGACIÓN E HISTORIAL" más abajo)
+   simplemente carga esta URL en un WebView, y el problema reportado
+   es el comportamiento estándar de caché HTTP del WebView.
+   Como aquí no hay build ni servidor que controlar, la solución es
+   este mecanismo ligero: en segundo plano, vuelve a pedir este mismo
+   index.html con cache:'no-store' (bypass total de caché) y compara
+   su APP_VERSION contra la que ya está corriendo. Si detecta una
+   versión distinta, limpia cualquier Cache Storage que pudiera existir
+   y recarga la página con una URL "cache-busted" (?_v=timestamp) para
+   forzar que el WebView traiga el HTML nuevo. No toca PACIENTES_KEY
+   ni TEMA_KEY: los datos del paciente y la preferencia de tema
+   sobreviven a la actualización.
+   ============================================================ */
+async function comprobarNuevaVersion(){
+  try{
+    const url = location.pathname + '?_v=' + Date.now();
+    const res = await fetch(url, { cache:'no-store' });
+    if(!res.ok) return;
+    const html = await res.text();
+    const m = html.match(/APP_VERSION\s*=\s*'([^']+)'/);
+    if(!m) return;
+    const versionRemota = m[1];
+    if(versionRemota && versionRemota !== APP_VERSION){
+      // Limpia caché obsoleta si existiera (por si en el futuro se agrega Cache Storage/SW).
+      if(window.caches && caches.keys){
+        try{ const keys = await caches.keys(); await Promise.all(keys.map(k=>caches.delete(k))); }catch(e){}
+      }
+      location.replace(location.pathname + '?_v=' + Date.now());
+    }
+  }catch(e){ /* sin conexión u otro error de red: se ignora, no interrumpe el uso normal de la app */ }
+}
+function iniciarComprobacionActualizaciones(){
+  // Comprueba poco después de abrir (deja que la app cargue primero)...
+  setTimeout(comprobarNuevaVersion, 4000);
+  // ...cada vez que el usuario vuelve a la app (caso típico en la APK: minimizar y reabrir)...
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState === 'visible') comprobarNuevaVersion();
+  });
+  // ...y de forma periódica mientras la app permanece abierta.
+  setInterval(comprobarNuevaVersion, 5 * 60 * 1000);
+}
+
+/* ============================================================
    ESTADO GLOBAL
    ============================================================ */
 const state = {
@@ -1018,13 +1167,21 @@ function dashConfiguracion(){
   const panel = document.getElementById('dashPanel');
   panel.style.display = 'block';
   const total = listarPacientesCompletos().length;
+  const temaActual = obtenerTema();
   panel.innerHTML = `
     <h3>⚙ Configuración</h3>
     <div style="font-size:13px;color:var(--ink-soft);line-height:1.7;">
       V.I.G. · Sistema de Evaluación Funcional para Fisioterapia<br>
       Los expedientes de pacientes (registro, historia clínica, escalas y resultados) se guardan en este dispositivo (localStorage). Actualmente hay ${total} paciente${total===1?'':'s'} guardado${total===1?'':'s'}.
     </div>
-    <div style="margin-top:14px;">
+    <div style="margin-top:20px;padding-top:18px;border-top:1px solid var(--line);">
+      <label style="margin-bottom:9px;">Tema</label>
+      <div class="theme-switch" role="group" aria-label="Selección de tema">
+        <button type="button" class="theme-opt ${temaActual==='light'?'active':''}" onclick="establecerTema('light')">☀️ Claro</button>
+        <button type="button" class="theme-opt ${temaActual==='dark'?'active':''}" onclick="establecerTema('dark')">🌙 Oscuro</button>
+      </div>
+    </div>
+    <div style="margin-top:18px;">
       <button class="ghost" onclick="borrarHistorialPacientes()">Borrar todos los pacientes guardados en este dispositivo</button>
     </div>`;
   panel.scrollIntoView({behavior:'smooth', block:'nearest'});
@@ -2543,6 +2700,8 @@ updateProgress();
 toggleCuidadorFields();
 actualizarIMCAuto();
 iniciarNavegacion();
+initTema();
+iniciarComprobacionActualizaciones();
 </script>
 </body>
 </html>
