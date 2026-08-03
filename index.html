@@ -1099,10 +1099,19 @@ function guardarPacientesRaw(lista){
 }
 // Normaliza registros antiguos (formato ligero previo: {codigo,nombre,edad,sexo,fecha,ts}) para que
 // sigan siendo compatibles y visibles en el listado, sin romper la aplicación.
+// IMPORTANTE: el _id generado para un registro legacy debe ser estable (no puede recalcularse
+// con Math.random() en cada llamada), porque el botón "Eliminar" depende de que el _id mostrado
+// en el listado coincida exactamente con el _id usado al filtrar la lista guardada. Si no fuera
+// estable, cada normalización produciría un id distinto y el registro nunca podría eliminarse.
 function normalizarRegistro(r){
-  if(r && r.paciente) return r; // ya es un expediente completo
+  if(r && r.paciente){
+    // Expediente completo. Si por alguna razón no tiene _id (no debería ocurrir en registros
+    // nuevos, pero se cubre por seguridad), se le asigna uno estable aquí mismo.
+    if(!r._id) r._id = 'p_'+(r.updatedAt||r.createdAt||Date.now())+'_'+Math.random().toString(36).slice(2,8);
+    return r;
+  }
   return {
-    _id: 'legacy_'+(r.ts||Date.now())+'_'+Math.random().toString(36).slice(2,7),
+    _id: r._id || ('legacy_'+(r.ts||Date.now())+'_'+Math.random().toString(36).slice(2,7)),
     paciente: { codigo:r.codigo, nombre:r.nombre, edad:r.edad, sexo:r.sexo, fecha:r.fecha },
     escalas:{}, nutricion:{}, metabolismo:{}, hidratacion:{}, mets:{}, balance:{},
     dinamometria:{}, fragilidad:{}, anexos:{ fotoValoracion:null },
@@ -1111,7 +1120,19 @@ function normalizarRegistro(r){
   };
 }
 function listarPacientesCompletos(){
-  return leerPacientesRaw().map(normalizarRegistro);
+  const raw = leerPacientesRaw();
+  let cambiaron = false;
+  const normalizados = raw.map(r=>{
+    const idAntes = r._id;
+    const norm = normalizarRegistro(r);
+    if(norm._id !== idAntes) cambiaron = true;
+    return norm;
+  });
+  // La primera vez que a un registro legacy se le asigna un _id, se persiste de inmediato en
+  // localStorage (el propio objeto normalizado, con paciente/escalas/etc. ya en su forma completa
+  // pero conservando legacy:true). A partir de ahí ese _id ya no vuelve a cambiar.
+  if(cambiaron) guardarPacientesRaw(normalizados);
+  return normalizados;
 }
 function guardarPacienteCompleto(){
   const lista = leerPacientesRaw();
@@ -1153,10 +1174,11 @@ function eliminarPacienteAccion(id){
   const rec = obtenerPacientePorId(id);
   if(!rec) return;
   if(!confirm(`¿Eliminar al paciente "${rec.paciente.nombre||'sin nombre'}"? Esta acción no se puede deshacer.`)) return;
-  const lista = leerPacientesRaw().filter(r=>{
-    const norm = normalizarRegistro(r);
-    return norm._id !== id;
-  });
+  // obtenerPacientePorId() ya pasó por listarPacientesCompletos(), que persiste el _id estable
+  // de cualquier registro legacy que aún no lo tuviera. Por eso aquí basta con filtrar la lista
+  // cruda por _id directamente: ya no hace falta (ni conviene) volver a normalizar, evitando así
+  // el desajuste de ids que impedía borrar los registros antiguos.
+  const lista = leerPacientesRaw().filter(r=> r._id !== id);
   guardarPacientesRaw(lista);
   if(state.editingId === id) state.editingId = null;
   renderDashPacientes();
@@ -1902,6 +1924,11 @@ function buildInformeHTML(rec){
     </div>
 
     <div class="card">
+      <h3>Plan de Intervención Fisioterapéutica</h3>
+      ${buildPlanIntervencionHTML(rec)}
+    </div>
+
+    <div class="card">
       <h3>Conclusiones y recomendaciones fisioterapéuticas</h3>
       <div style="white-space:pre-line;line-height:1.7;font-size:14px;">${conclusiones}</div>
     </div>
@@ -1923,6 +1950,132 @@ function buildConclusionesHTML(rec){
   if(bal.txt && bal.txt.includes('Déficit')) lines.push('Existe un déficit calórico relativo al gasto estimado; coordinar con nutrición para evitar catabolismo muscular durante el proceso de rehabilitación.');
   lines.push('Se sugiere reevaluación de escalas geriátricas y parámetros antropométricos en 4-6 semanas para monitorizar respuesta a la intervención.');
   return lines.map(l=>'• '+l).join('\n');
+}
+
+/* ------------------------------------------------------------
+   Plan de Intervención Fisioterapéutica — generado dinámicamente
+   a partir de TODOS los resultados disponibles del paciente
+   (escalas geriátricas, dinamometría, fragilidad, estado
+   nutricional, balance energético, METs). No es un texto fijo:
+   los objetivos, intervenciones, frecuencia, duración y
+   recomendaciones cambian según los hallazgos de cada paciente.
+   ------------------------------------------------------------ */
+function evaluarPlanIntervencion(rec){
+  const p = rec.paciente||{}, n = rec.nutricion||{}, d = rec.dinamometria||{}, f = rec.fragilidad||{},
+        bal = rec.balance||{}, escalas = rec.escalas||{};
+  const get = id => escalas[id];
+  const tug = get('tug'), berg = get('berg'), tinetti = get('tinetti'), sppb = get('sppb'),
+        chairstand = get('chairstand'), barthel = get('barthel'), lawton = get('lawton'), gds = get('gds');
+
+  // --- Lectura de severidad a partir de las interpretaciones ya calculadas de cada escala ---
+  const riesgoCaidasAlto = (tug && tug.total>=20) || (berg && berg.total<=20) || (tinetti && tinetti.total<19) || (sppb && sppb.total<=3);
+  const riesgoCaidasModerado = !riesgoCaidasAlto && ((tug && tug.total>=10) || (berg && berg.total<=40) || (tinetti && tinetti.total<=24) || (sppb && sppb.total<=6));
+  const debilidadMMII = (chairstand && chairstand.total<8) || (d && d.dinapenia) || (sppb && sppb.total<=6);
+  const dependenciaFuncional = (barthel && barthel.total<100) || (lawton && lawton.total<8);
+  const dependenciaSevera = (barthel && barthel.total<=55) || (lawton && lawton.total<=4);
+  const fragil = f.txt==='Frágil';
+  const prefragil = f.txt==='Prefrágil';
+  const riesgoNutricional = n.mnaTxt && n.mnaTxt!=='Estado nutricional normal';
+  const animoBajo = gds && gds.total>=5;
+  const hayDatos = Object.keys(escalas).length>0 || d.fuerza!=null || f.txt!=null;
+
+  const objetivos = [], intervenciones = [], recomendaciones = [];
+
+  if(riesgoCaidasAlto || riesgoCaidasModerado){
+    objetivos.push('Disminuir el riesgo de caídas.');
+    objetivos.push('Mejorar el equilibrio funcional, estático y dinámico.');
+    intervenciones.push('Entrenamiento del equilibrio (apoyo unipodal, superficies inestables, ejercicios de doble tarea).');
+    intervenciones.push('Prevención de caídas: adaptación del entorno y uso correcto de ayudas técnicas.');
+    recomendaciones.push('Evaluar y reducir riesgos/barreras de caída en el domicilio (iluminación, alfombras, barras de apoyo).');
+  }
+  if(debilidadMMII){
+    objetivos.push('Incrementar la fuerza de miembros inferiores.');
+    intervenciones.push('Fortalecimiento muscular progresivo de miembros inferiores (sentadillas asistidas, banda elástica, prensa).');
+  }
+  if(dependenciaFuncional){
+    objetivos.push('Mejorar la independencia funcional en las actividades de la vida diaria.');
+    intervenciones.push('Entrenamiento funcional orientado a tareas (transferencias, marcha, actividades básicas de la vida diaria).');
+    if(dependenciaSevera) intervenciones.push('Reeducación de la marcha con apoyo de ayudas técnicas y nivel de asistencia según dependencia.');
+  } else {
+    intervenciones.push('Reeducación de la marcha y entrenamiento de patrón funcional de desplazamiento.');
+  }
+  if(fragil || prefragil){
+    objetivos.push('Reducir el grado de fragilidad mediante un abordaje multicomponente.');
+    intervenciones.push('Programa multicomponente: fuerza, equilibrio, marcha y resistencia aeróbica de baja-moderada intensidad, con progresión supervisada.');
+  }
+  if(riesgoNutricional){
+    recomendaciones.push('Coordinar con nutrición clínica para optimizar el aporte proteico-calórico antes y durante la intervención.');
+  }
+  if(bal.txt && bal.txt.includes('Déficit')){
+    recomendaciones.push('Vigilar el balance energético durante la rehabilitación para evitar catabolismo muscular.');
+  }
+  if(animoBajo){
+    recomendaciones.push('Considerar interconsulta con psicología/psiquiatría por sintomatología depresiva identificada en el tamizaje.');
+  }
+  if(!hayDatos){
+    objetivos.push('Mejorar el equilibrio funcional.');
+    objetivos.push('Incrementar la fuerza de miembros inferiores.');
+    objetivos.push('Disminuir el riesgo de caídas.');
+    objetivos.push('Mejorar la independencia funcional.');
+    intervenciones.push('Ejercicios terapéuticos generales adaptados a tolerancia.');
+    intervenciones.push('Entrenamiento del equilibrio.');
+    intervenciones.push('Fortalecimiento muscular.');
+  } else if(objetivos.length===0){
+    // Hay evaluaciones registradas pero sin hallazgos de riesgo relevantes: el plan se orienta
+    // a mantenimiento y prevención en lugar de recuperación de un déficit específico.
+    objetivos.push('Mantener el nivel actual de fuerza, equilibrio y funcionalidad.');
+    objetivos.push('Prevenir el deterioro funcional asociado al envejecimiento.');
+    intervenciones.push('Ejercicio físico general de mantenimiento (fuerza, equilibrio y resistencia aeróbica).');
+  }
+  intervenciones.push('Educación al paciente y cuidador sobre el plan de ejercicio y señales de alarma.');
+  recomendaciones.push('Fomentar ejercicio domiciliario, supervisado y progresivo, como complemento a las sesiones presenciales.');
+  recomendaciones.push('Reevaluación periódica de escalas y parámetros funcionales para ajustar el plan según la respuesta del paciente.');
+  if(p.requiere_cuidador==='Sí') recomendaciones.push('Reforzar la educación del cuidador principal para un acompañamiento seguro en el domicilio.');
+
+  const uniq = arr => Array.from(new Set(arr));
+
+  let frecuencia, duracion;
+  if(riesgoCaidasAlto || fragil || dependenciaSevera){
+    frecuencia = '3 sesiones por semana (valorar una sesión adicional domiciliaria supervisada).';
+    duracion = '12 semanas, con reevaluación funcional cada 4 semanas.';
+  } else if(riesgoCaidasModerado || prefragil || debilidadMMII || dependenciaFuncional){
+    frecuencia = '3 sesiones por semana.';
+    duracion = '8 semanas, con reevaluación funcional al finalizar el proceso.';
+  } else {
+    frecuencia = '2 a 3 sesiones por semana.';
+    duracion = '6 semanas, con reevaluación funcional posterior.';
+  }
+
+  return {
+    objetivos: uniq(objetivos),
+    intervenciones: uniq(intervenciones),
+    recomendaciones: uniq(recomendaciones),
+    frecuencia, duracion
+  };
+}
+function generarPlanIntervencion(){
+  return buildPlanIntervencionHTML(recordDesdeState());
+}
+function buildPlanIntervencionHTML(rec){
+  const plan = evaluarPlanIntervencion(rec);
+  const li = arr => arr.map(x=>`<li style="margin-bottom:4px;">${x}</li>`).join('');
+  return `
+    <div style="font-size:14px;line-height:1.7;">
+      <h4 style="margin:0 0 4px;font-size:15px;color:var(--ink);">Objetivos fisioterapéuticos</h4>
+      <ul style="margin:0 0 14px 18px;padding:0;">${li(plan.objetivos)}</ul>
+
+      <h4 style="margin:0 0 4px;font-size:15px;color:var(--ink);">Intervenciones propuestas</h4>
+      <ul style="margin:0 0 14px 18px;padding:0;">${li(plan.intervenciones)}</ul>
+
+      <table class="report" style="margin-bottom:14px;">
+        <tr><th>Frecuencia sugerida</th><td>${plan.frecuencia}</td></tr>
+        <tr><th>Duración estimada</th><td>${plan.duracion}</td></tr>
+      </table>
+
+      <h4 style="margin:0 0 4px;font-size:15px;color:var(--ink);">Recomendaciones fisioterapéuticas</h4>
+      <ul style="margin:0 0 0 18px;padding:0;">${li(plan.recomendaciones)}</ul>
+    </div>
+  `;
 }
 
 function generarAnexosHTML(){
@@ -2071,6 +2224,32 @@ async function generarPDFClinico(){
     });
     return doc.lastAutoTable.finalY + 9;
   }
+  // Bloque de viñetas reutilizado por el Plan de Intervención Fisioterapéutica (objetivos,
+  // intervenciones, recomendaciones son listas variables según el paciente).
+  function planBulletBlock(y, titulo, items){
+    y = checkBreak(y, 6);
+    doc.setFont('helvetica','bold'); doc.setFontSize(9.8); doc.setTextColor(...COLOR.ink);
+    doc.text(titulo, MARGIN, y); y += 5;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.3); doc.setTextColor(...COLOR.ink);
+    items.forEach(line=>{
+      const wrapped = doc.splitTextToSize('•  '+line, CONTENT_W-2);
+      y = checkBreak(y, wrapped.length*4.6 + 2);
+      doc.text(wrapped, MARGIN+2, y);
+      y += wrapped.length*4.6 + 2;
+    });
+    return y + 2;
+  }
+  // Línea de texto simple reutilizada para Frecuencia sugerida / Duración estimada del plan.
+  function planTextBlock(y, titulo, texto){
+    y = checkBreak(y, 6);
+    doc.setFont('helvetica','bold'); doc.setFontSize(9.8); doc.setTextColor(...COLOR.ink);
+    doc.text(titulo, MARGIN, y); y += 5;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.3); doc.setTextColor(...COLOR.ink);
+    const wrapped = doc.splitTextToSize(texto, CONTENT_W-2);
+    y = checkBreak(y, wrapped.length*4.6 + 2);
+    doc.text(wrapped, MARGIN+2, y);
+    return y + wrapped.length*4.6 + 4;
+  }
 
   drawHeader();
   let y = HEAD_BOTTOM + 8;
@@ -2216,7 +2395,17 @@ async function generarPDFClinico(){
   }
   y += 3;
 
-  // 6. Conclusiones y recomendaciones fisioterapéuticas
+  // 6. Plan de Intervención Fisioterapéutica (generado dinámicamente a partir de escalas,
+  // dinamometría, fragilidad, estado nutricional y balance energético del paciente)
+  y = sectionTitle(y, 'Plan de Intervención Fisioterapéutica');
+  const plan = evaluarPlanIntervencion(recordDesdeState());
+  y = planBulletBlock(y, 'Objetivos fisioterapéuticos', plan.objetivos);
+  y = planBulletBlock(y, 'Intervenciones propuestas', plan.intervenciones);
+  y = planTextBlock(y, 'Frecuencia sugerida', plan.frecuencia);
+  y = planTextBlock(y, 'Duración estimada', plan.duracion);
+  y = planBulletBlock(y, 'Recomendaciones fisioterapéuticas', plan.recomendaciones);
+
+  // 7. Conclusiones y recomendaciones fisioterapéuticas
   y = sectionTitle(y, 'Conclusiones y recomendaciones fisioterapéuticas');
   doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...COLOR.ink);
   const conclusionLines = generarConclusiones().split('\n').map(l=>l.replace(/^•\s*/,''));
@@ -2227,7 +2416,7 @@ async function generarPDFClinico(){
     y += wrapped.length*5 + 3;
   });
 
-  // 7. Anexos
+  // 8. Anexos
   y = sectionTitle(y+2, 'Anexos');
   const anexo = state.anexos && state.anexos.fotoValoracion;
   doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...COLOR.inkSoft);
