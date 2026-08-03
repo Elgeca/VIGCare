@@ -774,19 +774,111 @@ let pacSearchTerm = '';
 let pacSortDir = 'desc'; // desc = más reciente primero
 
 /* ============================================================
-   DASHBOARD / PANTALLA PRINCIPAL
+   NAVEGACIÓN E HISTORIAL (History API)
+   ------------------------------------------------------------
+   La app es una SPA con navegación propia (no usa React Router,
+   Next.js ni Vue Router): antes, cada cambio de pantalla
+   (Dashboard, un módulo del workspace, o el expediente de un
+   paciente) simplemente alternaba estilos display:none/flex/block
+   sobre #dashboardScreen, #app y #expedienteScreen, sin tocar
+   nunca el historial del navegador (no había pushState ni
+   popstate en toda la app).
+
+   Ese era exactamente el motivo por el que, empaquetada como APK
+   con Median, el botón físico "Atrás" de Android cerraba la app
+   de inmediato: Median usa el WebView estándar de Android, cuyo
+   comportamiento por defecto ante el botón Atrás es preguntarle al
+   WebView "¿puedes retroceder en el historial?" (WebView.canGoBack());
+   si la respuesta es no —como ocurría siempre aquí, porque nunca se
+   creaba ninguna entrada de historial— Android cierra la actividad,
+   es decir, cierra la app. Esto aplica igual al APK (Median), a un
+   navegador normal y a una PWA instalada: los tres usan el mismo
+   mecanismo (History API).
+
+   La solución (estándar para SPA, sin hacks) es registrar una
+   entrada de historial por cada pantalla/módulo al que el usuario
+   avanza, y escuchar el evento "popstate" para repintar la pantalla
+   anterior cuando el usuario retrocede, en vez de dejar que el
+   navegador simplemente salga de la página. Así, cada pulsación de
+   Atrás retrocede un paso dentro de la app, y solo cuando ya no
+   queda ninguna entrada de historial (es decir, estando en el
+   Dashboard, que es la raíz) el siguiente Atrás cierra la app.
    ============================================================ */
-function goDashboard(){
+
+// --- Funciones "privadas" de renderizado puro (solo tocan el DOM, nunca el historial) ---
+function _renderDashboard(){
   document.getElementById('app').style.display = 'none';
   document.getElementById('expedienteScreen').style.display = 'none';
   document.getElementById('dashboardScreen').style.display = 'flex';
   document.getElementById('dashPanel').style.display = 'none';
 }
-function enterWorkspace(sectionId){
+function _renderWorkspaceSection(id){
+  if(!id) id = 'registro';
   document.getElementById('dashboardScreen').style.display = 'none';
   document.getElementById('expedienteScreen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
-  if(sectionId) showSection(sectionId);
+  const sec = document.getElementById('sec-'+id);
+  const navbtn = document.getElementById('nav-'+id);
+  if(!sec || !navbtn) return; // id inválido: no rompe la app, simplemente no cambia nada
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  sec.classList.add('active');
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+  navbtn.classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(id==='informe') generarInforme();
+}
+function _renderExpedienteScreen(id){
+  const rec = obtenerPacientePorId(id);
+  if(!rec){ _renderDashboard(); return; }
+  expedienteActualId = id;
+  renderExpediente(rec);
+  document.getElementById('dashboardScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('expedienteScreen').style.display = 'block';
+  window.scrollTo({top:0});
+}
+// Aplica visualmente un estado de navegación (lo usan tanto la navegación normal
+// como el manejador de "popstate" al pulsar Atrás; nunca toca el historial).
+function _aplicarEstadoNav(st){
+  if(!st || st.screen==='dashboard'){ _renderDashboard(); return; }
+  if(st.screen==='workspace'){ _renderWorkspaceSection(st.section); return; }
+  if(st.screen==='expediente'){ _renderExpedienteScreen(st.id); return; }
+  _renderDashboard();
+}
+function _urlParaEstadoNav(st){
+  if(st.screen==='workspace') return '#/'+(st.section||'registro');
+  if(st.screen==='expediente') return '#/expediente/'+(st.id||'');
+  return '#/dashboard';
+}
+// Punto único de entrada para toda navegación "hacia adelante": registra una
+// nueva entrada en el historial del navegador y luego pinta la pantalla.
+function _navegarA(st){
+  const url = _urlParaEstadoNav(st);
+  try{ history.pushState(st, '', url); }
+  catch(e){ /* si el entorno no soporta pushState, se ignora sin romper la navegación visual */ }
+  _aplicarEstadoNav(st);
+}
+// El usuario pulsó Atrás (botón físico Android/Median, gesto, o Atrás del navegador/PWA).
+// El navegador ya movió el historial por su cuenta; aquí solo repintamos la pantalla que
+// corresponde a la entrada a la que se retrocedió. No se vuelve a hacer pushState.
+window.addEventListener('popstate', (ev)=>{ _aplicarEstadoNav(ev.state); });
+// Se llama una única vez al iniciar la app: fija el Dashboard como raíz del historial
+// (reemplaza la entrada inicial en vez de apilar una nueva), de modo que sea la única
+// pantalla desde la que el siguiente "Atrás" puede cerrar la aplicación.
+function iniciarNavegacion(){
+  try{ history.replaceState({screen:'dashboard'}, '', '#/dashboard'); }
+  catch(e){ /* se ignora; la pantalla se pinta igual, solo faltaría el historial */ }
+  _renderDashboard();
+}
+
+/* ============================================================
+   DASHBOARD / PANTALLA PRINCIPAL
+   ============================================================ */
+function goDashboard(){
+  _navegarA({screen:'dashboard'});
+}
+function enterWorkspace(sectionId){
+  _navegarA({screen:'workspace', section: sectionId || 'registro'});
 }
 function limpiarFormularioRegistro(){
   ['r_eval_nombre','r_eval_institucion',
@@ -980,12 +1072,7 @@ function renderNav(){
     </button></li>`).join('');
 }
 function showSection(id){
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.getElementById('sec-'+id).classList.add('active');
-  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('nav-'+id).classList.add('active');
-  window.scrollTo({top:0,behavior:'smooth'});
-  if(id==='informe') generarInforme();
+  _navegarA({screen:'workspace', section:id});
 }
 function markDone(id){
   doneModules.add(id);
@@ -1295,12 +1382,7 @@ function primeraSeccionIncompleta(){
 function verPacienteAccion(id){
   const rec = obtenerPacientePorId(id);
   if(!rec) return;
-  expedienteActualId = id;
-  renderExpediente(rec);
-  document.getElementById('dashboardScreen').style.display = 'none';
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('expedienteScreen').style.display = 'block';
-  window.scrollTo({top:0});
+  _navegarA({screen:'expediente', id});
 }
 function cerrarExpediente(){
   expedienteActualId = null;
@@ -2461,7 +2543,7 @@ renderMNA();
 updateProgress();
 toggleCuidadorFields();
 actualizarIMCAuto();
-goDashboard();
+iniciarNavegacion();
 </script>
 </body>
 </html>
