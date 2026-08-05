@@ -817,7 +817,7 @@
     <!-- ============ 7. DINAMOMETRIA ============ -->
     <section class="section" id="sec-dinamometria" data-num="7">
       <div class="eyebrow">07 · Fuerza muscular</div>
-      <h2 class="title">Fuerza de Agarre (Dinamometría)</h2>
+      <h2 class="title">Fuerza de agarre</h2>
       <p class="lede">Fuerza prensil como marcador de sarcopenia y fragilidad.</p>
       <div class="card">
         <div class="field"><label>Fuerza de agarre — promedio de 3 mediciones (kg)</label><input id="d_fuerza" type="number" step="0.1" placeholder="Ej. 22.5"></div>
@@ -1324,7 +1324,7 @@ const NAV_ITEMS = [
   {id:'metabolismo', label:'Metabolismo Basal'},
   {id:'hidratacion', label:'Hidratación'},
   {id:'mets', label:'METs y Balance'},
-  {id:'dinamometria', label:'Fuerza de Agarre'},
+  {id:'dinamometria', label:'Fuerza de agarre'},
   {id:'fragilidad', label:'Fragilidad'},
   {id:'informe', label:'Informe Final'},
 ];
@@ -1370,7 +1370,7 @@ const REGLAS_ESCALAS_POR_PATOLOGIA = [
   { claves:['alzheimer','demencia'], escalas:['MMSE','Pfeiffer','Lawton-Brody','Índice de Barthel','GDS-15 de Yesavage'] },
   { claves:['artrosis','osteoartritis','gonartrosis','coxartrosis'], escalas:['WOMAC','Escala Visual Analógica (EVA)','Índice de Barthel','Timed Up and Go (TUG)'] },
   { claves:['fragilidad','fragil'], escalas:['FRAIL','Edmonton Frail Scale','Clinical Frailty Scale','SPPB'] },
-  { claves:['sarcopenia','dinapenia'], escalas:['SARC-F','Dinamometría','SPPB','Chair Stand Test'] },
+  { claves:['sarcopenia','dinapenia'], escalas:['SARC-F','Fuerza de agarre','SPPB','Chair Stand Test'] },
   { claves:['caida','caídas','inestabilidad','equilibrio'], escalas:['Berg','Tinetti','Timed Up and Go (TUG)','Alcance Funcional'] },
   { claves:['epoc','enfermedad pulmonar obstructiva'], escalas:['mMRC','6-Minute Walk Test','Borg','SPPB'] },
   { claves:['insuficiencia cardiaca','cardiopatia','cardiopatía'], escalas:['6-Minute Walk Test','Borg','Timed Up and Go (TUG)','SPPB'] },
@@ -1683,7 +1683,12 @@ function restaurarResultadosVisuales(){
   if(n.proteina!=null) put('n_result', `<div class="result good"><span class="big">${n.proteina.toFixed(0)} g proteína/día</span><span class="big" style="margin-top:6px;">${(n.calorias||0).toFixed(0)} kcal/día</span><span class="tag">Requerimiento estimado (guardado)</span></div>`);
   if(n.mna!=null) put('mna_result', `<div class="result ${n.mnaTxt==='Estado nutricional normal'?'good':(n.mnaTxt==='Riesgo de malnutrición'?'mid':'risk')}"><span class="big">${n.mna} / 14</span><span class="tag">${n.mnaTxt}</span></div>`);
   if(n.smm!=null) put('mm_result', `<div class="result good"><span class="big">${n.smm.toFixed(1)} kg</span><span class="tag">SMI: ${n.smi.toFixed(2)} kg/m²</span></div>`);
-  if(m.bmr!=null) put('m_result_tmb', `<div class="result good"><span class="big">TMB: ${m.bmr.toFixed(0)} kcal/día</span><span class="tag">Fórmula Mifflin-St Jeor según sexo registrado (guardado)</span></div>`);
+  if(m.bmr!=null){
+    const formulaTMBSaved = state.paciente && state.paciente.sexo==='M'
+      ? 'Fórmula Mifflin–St Jeor (Hombre): TMB = (10 × peso en kg) + (6.25 × talla en cm) − (5 × edad) + 5'
+      : 'Fórmula Mifflin–St Jeor (Mujer): TMB = (10 × peso en kg) + (6.25 × talla en cm) − (5 × edad) − 161';
+    put('m_result_tmb', `<div class="result good"><span class="big">TMB: ${m.bmr.toFixed(0)} kcal/día</span><span class="tag">Fórmula Mifflin-St Jeor según sexo registrado (guardado)</span><span class="tag" style="display:block;margin-top:4px;">Fórmula utilizada: ${formulaTMBSaved}</span></div>`);
+  }
   if(m.get!=null) put('m_result_get', `<div class="result good"><span class="big">GET: ${m.get.toFixed(0)} kcal/día</span><span class="tag">GET = TMB × Factor de actividad (guardado)</span></div>`);
   if(h.litros!=null) put('h_result', `<div class="result good"><span class="big">${h.litros.toFixed(2)} L / día</span></div>`);
   if(met.valor!=null){
@@ -2105,9 +2110,13 @@ function calcTMB(){
     : (10*p.peso) + (6.25*p.talla) - (5*p.edad) - 161;
   state.metabolismo.bmr = bmr;
   markDone('metabolismo');
+  const formulaTMB = p.sexo==='M'
+    ? 'Fórmula Mifflin–St Jeor (Hombre): TMB = (10 × peso en kg) + (6.25 × talla en cm) − (5 × edad) + 5'
+    : 'Fórmula Mifflin–St Jeor (Mujer): TMB = (10 × peso en kg) + (6.25 × talla en cm) − (5 × edad) − 161';
   document.getElementById('m_result_tmb').innerHTML = `<div class="result good">
     <span class="big">TMB: ${bmr.toFixed(0)} kcal/día</span>
-    <span class="tag">Mifflin-St Jeor · ${p.sexo==='M'?'fórmula masculina':'fórmula femenina'}</span></div>`;
+    <span class="tag">Mifflin-St Jeor · ${p.sexo==='M'?'fórmula masculina':'fórmula femenina'}</span>
+    <span class="tag" style="display:block;margin-top:4px;">Fórmula utilizada: ${formulaTMB}</span></div>`;
   return bmr;
 }
 function calcGET(){
@@ -3582,23 +3591,6 @@ async function generarPDFClinico(){
   });
   y = planTextBlock(y, '', sugeridasPdf.length?sugeridasPdf.join(' · '):'No se identificaron sugerencias automáticas para el diagnóstico registrado.');
 
-  // 6. Análisis clínico fisioterapéutico construido mediante reglas.
-  // Antes de dibujar el título se calcula la altura TOTAL del bloque (título +
-  // todo el texto, respetando sus párrafos) y se decide con
-  // ensureBlockFitsOrBreak() si conviene saltar de página ANTES de empezar.
-  // Así se evita que el análisis arranque casi al final de una página y su
-  // texto se corte a mitad de frase (o con un paréntesis abierto) al pasar a
-  // la siguiente: si cabe entero en una página, se traslada completo; si es
-  // más largo que una página, se reparte pero solo por límites de párrafo u
-  // oración completa (ver drawFlowingParagraphs).
-  const analisisClinico = generarAnalisisClinico(recordDesdeState());
-  const analisisBodyHeight = estimateParagraphsHeight(analisisClinico, CONTENT_W-2, 9.3, 4.6);
-  y = ensureBlockFitsOrBreak(y, SECTION_TITLE_H + analisisBodyHeight);
-  doc.setFont('helvetica','normal'); doc.setFontSize(9.3);
-  const analisisWrap = doc.splitTextToSize(analisisClinico, CONTENT_W-2);
-  y = sectionTitle(y, 'Análisis Clínico Fisioterapéutico', Math.min(analisisWrap.length,2)*4.6 + 2);
-  y = planTextBlock(y, '', analisisClinico);
-
   // 7. Plan de Intervención Fisioterapéutica (generado dinámicamente a partir de escalas,
   // riesgos detectados, dinamometría, fragilidad, estado nutricional, balance energético,
   // METs e hidratación del paciente)
@@ -3695,6 +3687,24 @@ async function generarPDFClinico(){
       y+=descLines.length*4.6+8;
     }
   }
+
+  // 9. Informe Final: apartado de cierre del documento. Contiene íntegramente,
+  // sin resumir ni modificar, el texto narrativo generado por el Análisis
+  // Clínico Fisioterapéutico (misma lógica de generación que antes, solo que
+  // ahora se dibuja al final del PDF como sección independiente). Se aplican
+  // las mismas reglas de paginación inteligente: se calcula la altura TOTAL
+  // del bloque (título + todo el texto, respetando párrafos) y se decide con
+  // ensureBlockFitsOrBreak() si conviene saltar de página ANTES de empezar,
+  // para que el título nunca quede huérfano ni el texto se corte a mitad de
+  // frase. Usa el mismo encabezado, pie de página, tipografía y márgenes que
+  // el resto del documento.
+  const informeFinalTexto = generarAnalisisClinico(recordDesdeState());
+  const informeFinalBodyHeight = estimateParagraphsHeight(informeFinalTexto, CONTENT_W-2, 9.3, 4.6);
+  y = ensureBlockFitsOrBreak(y+2, SECTION_TITLE_H + informeFinalBodyHeight);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.3);
+  const informeFinalWrap = doc.splitTextToSize(informeFinalTexto, CONTENT_W-2);
+  y = sectionTitle(y, 'INFORME FINAL', Math.min(informeFinalWrap.length,2)*4.6 + 2);
+  y = planTextBlock(y, '', informeFinalTexto);
 
   // Pie de página en todas las páginas
   const totalPages = doc.internal.getNumberOfPages();
