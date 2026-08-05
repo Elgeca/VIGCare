@@ -3049,6 +3049,48 @@ async function generarPDFClinico(){
     const lines = doc.splitTextToSize(String(text==null?'':text), width);
     return Math.max(lines.length,1) * lineH;
   }
+  // Igual que estimateWrappedHeight, pero para un texto que puede contener
+  // varios párrafos separados por líneas en blanco ("\n\n"), como el Análisis
+  // Clínico Fisioterapéutico. Se usa para calcular de antemano la altura TOTAL
+  // de un bloque narrativo largo antes de decidir dónde debe empezar.
+  function estimateParagraphsHeight(text, width, fontSize, lineH){
+    doc.setFont('helvetica','normal'); doc.setFontSize(fontSize);
+    const paragraphs = String(text==null?'':text).split(/\n\s*\n/).map(s=>s.trim()).filter(Boolean);
+    if(!paragraphs.length) return 0;
+    let lines = 0;
+    paragraphs.forEach(p=>{ lines += Math.max(doc.splitTextToSize(p, width).length, 1); });
+    // + 1 línea de separación visual entre cada par de párrafos (el mismo
+    // espacio en blanco que hoy produce splitTextToSize al toparse con "\n\n").
+    return lines*lineH + Math.max(0, paragraphs.length-1)*lineH;
+  }
+  // Antes de un bloque narrativo largo (p. ej. "Análisis Clínico
+  // Fisioterapéutico"): decide si conviene saltar de página ANTES de dibujar
+  // el título, en vez de dejar que arranque casi al final de la página y su
+  // texto se corte de forma antinatural en la siguiente. Reglas:
+  //  1) Si el bloque completo (título + texto) cabe en una página entera,
+  //     debe permanecer siempre íntegro: si no cabe en el espacio restante
+  //     de la página actual, se traslada por completo a una página nueva.
+  //  2) Si el bloque es más grande que una página completa, se le permite
+  //     repartirse entre varias páginas — pero si el espacio restante no
+  //     alcanza ni para mostrar la mayor parte del contenido (~70-80%), es
+  //     preferible saltar de página antes del título en vez de dejar solo
+  //     un fragmento mínimo aislado al pie de la página.
+  //  El reparto real entre páginas (cuando el bloque no cabe en una sola)
+  //  lo hace después drawFlowingParagraphs, respetando siempre los límites
+  //  de párrafo y de oración (ver más abajo).
+  const FRACCION_MINIMA_INICIO = 0.75; // dentro del rango 70-80% solicitado
+  function ensureBlockFitsOrBreak(y, blockHeight){
+    const fullPageUsable = FOOT_TOP - (HEAD_BOTTOM+4);
+    const remaining = FOOT_TOP - y;
+    if(blockHeight <= fullPageUsable){
+      if(blockHeight > remaining){ doc.addPage(); drawHeader(); return HEAD_BOTTOM+4; }
+      return y;
+    }
+    if(remaining < blockHeight*FRACCION_MINIMA_INICIO && remaining < fullPageUsable){
+      doc.addPage(); drawHeader(); return HEAD_BOTTOM+4;
+    }
+    return y;
+  }
   // Estima cuánto ocupará la primera fila de una kvTable (título en negrita +
   // valor envuelto a la 2ª columna), para reservar ese espacio junto al título
   // de sección y evitar que el título quede solo si la tabla salta de página.
@@ -3139,6 +3181,104 @@ async function generarPDFClinico(){
     }
     return y;
   }
+  // Divide un párrafo en oraciones completas (incluye el signo de puntuación
+  // final y cualquier paréntesis/comilla de cierre pegado a él), para poder
+  // usar el final de una oración como único punto válido de corte cuando un
+  // párrafo es tan largo que, por sí solo, no cabe en una página completa.
+  // Como el corte nunca ocurre antes del punto/signo final, jamás se deja un
+  // paréntesis abierto ni una frase a medias entre una página y la siguiente.
+  function splitIntoSentences(text){
+    const found = String(text||'').match(/[^.!?]+[.!?]+[)\]"'”’]*\s*/g);
+    return found ? found.map(s=>s.trim()).filter(Boolean) : [String(text||'').trim()].filter(Boolean);
+  }
+  // Dibuja un texto que puede tener varios párrafos (separados por "\n\n"),
+  // fluyendo entre páginas de forma "profesional":
+  //  - Un párrafo que cabe completo en el espacio restante se dibuja tal cual.
+  //  - Un párrafo que NO cabe en el espacio restante, pero SÍ cabe entero en
+  //    una página nueva, se traslada íntegro a esa página (nunca se parte si
+  //    puede evitarse) — esto es lo que impide que una idea quede cortada a
+  //    mitad de frase o con un paréntesis abierto entre dos páginas.
+  //  - Solo si un párrafo por sí solo supera la altura útil de una página
+  //    completa (caso excepcional) se permite dividirlo, y únicamente por
+  //    límites de oración completa (nunca a mitad de una frase).
+  function drawFlowingParagraphs(y, text, lineHeight, x){
+    const posX = x!=null ? x : MARGIN;
+    // El ancho de envoltura se calcula para que el borde derecho del texto
+    // coincida exactamente con el margen derecho de la página (PAGE_W-MARGIN),
+    // igual que hace el resto del documento (p. ej. planTextBlock usa
+    // CONTENT_W-2 al dibujar desde MARGIN+2).
+    const width = (PAGE_W - MARGIN) - posX;
+    const fullPageUsable = FOOT_TOP - (HEAD_BOTTOM+4);
+    // Mismo motivo que en drawFlowingText: se captura el estilo vigente para
+    // restaurarlo tras cada salto de página interno (drawHeader() deja
+    // activos su propio tamaño/color y, si no se restauran, el texto que
+    // continúa se vería más claro y más pequeño que el resto del párrafo).
+    const bodyFont = doc.getFont(), bodyFontSize = doc.getFontSize(), bodyTextColor = doc.getTextColor();
+    function restoreBodyStyle(){
+      doc.setFont(bodyFont.fontName, bodyFont.fontStyle);
+      doc.setFontSize(bodyFontSize);
+      doc.setTextColor(bodyTextColor);
+    }
+    function newPage(){
+      doc.addPage(); drawHeader(); restoreBodyStyle();
+      return HEAD_BOTTOM+4;
+    }
+    const paragraphs = String(text==null?'':text).split(/\n\s*\n/).map(s=>s.trim()).filter(Boolean);
+    paragraphs.forEach((paragraph, idx)=>{
+      const wrapped = doc.splitTextToSize(paragraph, width);
+      const paraHeight = wrapped.length*lineHeight;
+      const remaining = FOOT_TOP - y;
+      if(paraHeight <= remaining){
+        // Cabe completo desde donde vamos: se dibuja sin tocarlo.
+        doc.text(wrapped, posX, y);
+        y += paraHeight;
+      } else if(paraHeight <= fullPageUsable){
+        // No cabe aquí, pero cabe entero en una página nueva: se mueve
+        // completo (nunca se corta un párrafo pudiendo evitarse).
+        y = newPage();
+        doc.text(wrapped, posX, y);
+        y += paraHeight;
+      } else {
+        // Excepcional: el párrafo por sí solo excede una página completa.
+        // Se reparte SOLO por límites de oración completa.
+        const sentences = splitIntoSentences(paragraph);
+        let buffer = '';
+        sentences.forEach(sentence=>{
+          const tentative = buffer ? buffer+' '+sentence : sentence;
+          const tentativeWrapped = doc.splitTextToSize(tentative, width);
+          const tentativeHeight = tentativeWrapped.length*lineHeight;
+          if(tentativeHeight <= (FOOT_TOP - y)){
+            buffer = tentative;
+            return;
+          }
+          if(buffer){
+            const bufferWrapped = doc.splitTextToSize(buffer, width);
+            doc.text(bufferWrapped, posX, y);
+            y += bufferWrapped.length*lineHeight;
+          }
+          y = newPage();
+          const soloWrapped = doc.splitTextToSize(sentence, width);
+          if(soloWrapped.length*lineHeight <= (FOOT_TOP - y)){
+            buffer = sentence;
+          } else {
+            // Salvaguarda: una única oración más larga que una página entera
+            // (caso extremo, no se produce con los textos generados por la
+            // app). Se reparte por línea con el mismo control de viudas/
+            // huérfanas que usa drawFlowingText, en vez de quedarse trabado.
+            y = drawFlowingText(y, soloWrapped, lineHeight, posX);
+            buffer = '';
+          }
+        });
+        if(buffer){
+          const bufferWrapped = doc.splitTextToSize(buffer, width);
+          doc.text(bufferWrapped, posX, y);
+          y += bufferWrapped.length*lineHeight;
+        }
+      }
+      if(idx < paragraphs.length-1) y += lineHeight;
+    });
+    return y;
+  }
   // Bloque de viñetas reutilizado por el Plan de Intervención Fisioterapéutica (objetivos,
   // intervenciones, recomendaciones son listas variables según el paciente). El subtítulo
   // nunca queda huérfano: se reserva junto a él el alto de su primera viñeta.
@@ -3180,7 +3320,7 @@ async function generarPDFClinico(){
       doc.text(titulo, MARGIN, y); y += 5;
     }
     doc.setFont('helvetica','normal'); doc.setFontSize(9.3); doc.setTextColor(...COLOR.ink);
-    y = drawFlowingText(y, wrapped, lineH, MARGIN+2);
+    y = drawFlowingParagraphs(y, texto, lineH, MARGIN+2);
     return y + 4;
   }
 
@@ -3344,9 +3484,17 @@ async function generarPDFClinico(){
   y = planTextBlock(y, '', sugeridasPdf.length?sugeridasPdf.join(' · '):'No se identificaron sugerencias automáticas para el diagnóstico registrado.');
 
   // 6. Análisis clínico fisioterapéutico construido mediante reglas.
-  // Se reserva junto al título el alto de sus 2 primeras líneas, igual que hace
-  // internamente planTextBlock, para que el título nunca quede huérfano.
+  // Antes de dibujar el título se calcula la altura TOTAL del bloque (título +
+  // todo el texto, respetando sus párrafos) y se decide con
+  // ensureBlockFitsOrBreak() si conviene saltar de página ANTES de empezar.
+  // Así se evita que el análisis arranque casi al final de una página y su
+  // texto se corte a mitad de frase (o con un paréntesis abierto) al pasar a
+  // la siguiente: si cabe entero en una página, se traslada completo; si es
+  // más largo que una página, se reparte pero solo por límites de párrafo u
+  // oración completa (ver drawFlowingParagraphs).
   const analisisClinico = generarAnalisisClinico(recordDesdeState());
+  const analisisBodyHeight = estimateParagraphsHeight(analisisClinico, CONTENT_W-2, 9.3, 4.6);
+  y = ensureBlockFitsOrBreak(y, SECTION_TITLE_H + analisisBodyHeight);
   doc.setFont('helvetica','normal'); doc.setFontSize(9.3);
   const analisisWrap = doc.splitTextToSize(analisisClinico, CONTENT_W-2);
   y = sectionTitle(y, 'Análisis Clínico Fisioterapéutico', Math.min(analisisWrap.length,2)*4.6 + 2);
