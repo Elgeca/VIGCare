@@ -3097,6 +3097,15 @@ async function generarPDFClinico(){
   // (como mínimo se mantienen 2 líneas juntas).
   function drawFlowingText(y, lines, lineHeight, x){
     const posX = x!=null ? x : MARGIN;
+    // Se captura el estado de fuente/tamaño/color vigente (fijado por quien
+    // llama a esta función justo antes de invocarla) para poder restaurarlo
+    // tras cada salto de página interno. Sin esto, drawHeader() deja activo
+    // su propio tamaño/color (usados para el subtítulo del encabezado) y el
+    // resto del párrafo se dibujaría con ese estilo residual — más pequeño
+    // y en gris — en vez del estilo real del cuerpo del texto.
+    const bodyFont = doc.getFont();
+    const bodyFontSize = doc.getFontSize();
+    const bodyTextColor = doc.getTextColor();
     let i = 0;
     while(i < lines.length){
       const restantes = lines.length - i;
@@ -3117,7 +3126,16 @@ async function generarPDFClinico(){
         y += cabenAhora*lineHeight;
         i += cabenAhora;
       }
-      if(i < lines.length){ doc.addPage(); drawHeader(); y = HEAD_BOTTOM+4; }
+      if(i < lines.length){
+        doc.addPage(); drawHeader(); y = HEAD_BOTTOM+4;
+        // drawHeader() deja activos su propio tamaño de fuente y color
+        // (los del subtítulo/fecha del encabezado). Se restaura aquí el
+        // estilo real del cuerpo de texto antes de seguir dibujando el
+        // párrafo, para que se vea idéntico en la página nueva.
+        doc.setFont(bodyFont.fontName, bodyFont.fontStyle);
+        doc.setFontSize(bodyFontSize);
+        doc.setTextColor(bodyTextColor);
+      }
     }
     return y;
   }
