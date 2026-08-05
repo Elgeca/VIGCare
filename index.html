@@ -2620,9 +2620,11 @@ function generarAnalisisClinico(rec){
 
   const parrafos=[];
   const sexo = p.sexo==='F' ? 'mujer' : (p.sexo==='M' ? 'hombre' : 'persona');
+  const articuloSexo = sexo==='hombre' ? 'un' : 'una'; // "un hombre" / "una mujer" / "una persona"
+  const nounPaciente = sexo==='hombre' ? 'el paciente' : (sexo==='mujer' ? 'la paciente' : 'la persona evaluada');
 
   /* ============ 1. Introducción ============ */
-  let intro = `Se realiza la valoración fisioterapéutica de una ${sexo} de ${p.edad||'edad no registrada'} años`;
+  let intro = `Se realiza la valoración fisioterapéutica de ${articuloSexo} ${sexo} de ${p.edad||'edad no registrada'} años`;
   const diagMed = clean(p.diagnostico_medico);
   const diagFt = clean(p.diagnostico);
   if(diagMed) intro += `, con diagnóstico médico de ${diagMed}`;
@@ -2701,7 +2703,7 @@ function generarAnalisisClinico(rec){
     parrafoNutr = `El tamizaje nutricional confirma ${lowerFirst(n.mnaTxt)}`;
     if(n.imcCat) parrafoNutr += `, hallazgo que contrasta con un IMC clasificado como ${lowerFirst(n.imcCat)} y que debe interpretarse considerando la composición corporal más que el peso global`;
     if(p.perdida_peso && p.perdida_peso.startsWith('Sí')){
-      parrafoNutr += `, en concordancia con la pérdida de peso ${p.perdida_peso.includes('involuntaria')?'involuntaria':'reportada'} referida por la paciente${p.perdida_peso_detalle?` (${clean(p.perdida_peso_detalle)})`:''}`;
+      parrafoNutr += `, en concordancia con la pérdida de peso ${p.perdida_peso.includes('involuntaria')?'involuntaria':'reportada'} referida por ${nounPaciente}${p.perdida_peso_detalle?` (${clean(p.perdida_peso_detalle)})`:''}`;
     }
     parrafoNutr += '. Este hallazgo amerita manejo interdisciplinario con nutrición clínica dentro del plan de rehabilitación.';
   }
@@ -3036,8 +3038,38 @@ async function generarPDFClinico(){
      ------------------------------------------------------------ */
   // Primitiva base: si "needed" mm no caben desde "y" hasta el pie de página,
   // salta de página completa (con encabezado nuevo) antes de dibujar nada.
+  // Salta de página completa (con encabezado nuevo) cuando "needed" mm no caben
+  // desde "y" hasta el pie de página. Regla 8: antes de saltar se captura el
+  // estado gráfico vigente (fuente, tamaño, color de texto, grosor de línea) y,
+  // tras dibujar el nuevo encabezado, se restaura íntegro — drawHeader() deja
+  // activo su propio estilo (el del subtítulo/fecha) y sin esta restauración
+  // cualquier texto que continúe justo después de un salto se vería más claro
+  // o con un tamaño distinto al del resto del bloque.
+  function restoreGraphicState(state){
+    doc.setFont(state.font.fontName, state.font.fontStyle);
+    doc.setFontSize(state.fontSize);
+    doc.setTextColor(state.textColor);
+    if(typeof doc.getLineWidth==='function' && typeof doc.setLineWidth==='function'){
+      doc.setLineWidth(state.lineWidth);
+    }
+  }
+  function captureGraphicState(){
+    return {
+      font: doc.getFont(),
+      fontSize: doc.getFontSize(),
+      textColor: doc.getTextColor(),
+      lineWidth: (typeof doc.getLineWidth==='function') ? doc.getLineWidth() : 0.2
+    };
+  }
+  function breakPage(){
+    const state = captureGraphicState();
+    doc.addPage();
+    drawHeader();
+    restoreGraphicState(state);
+    return HEAD_BOTTOM+4;
+  }
   function checkBreak(y, needed){
-    if(y+needed > FOOT_TOP){ doc.addPage(); drawHeader(); return HEAD_BOTTOM+4; }
+    if(y+needed > FOOT_TOP){ return breakPage(); }
     return y;
   }
   // Calcula el alto (mm) que ocupará un texto ya envuelto a un ancho dado,
@@ -3083,11 +3115,11 @@ async function generarPDFClinico(){
     const fullPageUsable = FOOT_TOP - (HEAD_BOTTOM+4);
     const remaining = FOOT_TOP - y;
     if(blockHeight <= fullPageUsable){
-      if(blockHeight > remaining){ doc.addPage(); drawHeader(); return HEAD_BOTTOM+4; }
+      if(blockHeight > remaining){ return breakPage(); }
       return y;
     }
     if(remaining < blockHeight*FRACCION_MINIMA_INICIO && remaining < fullPageUsable){
-      doc.addPage(); drawHeader(); return HEAD_BOTTOM+4;
+      return breakPage();
     }
     return y;
   }
@@ -3169,11 +3201,11 @@ async function generarPDFClinico(){
         i += cabenAhora;
       }
       if(i < lines.length){
-        doc.addPage(); drawHeader(); y = HEAD_BOTTOM+4;
-        // drawHeader() deja activos su propio tamaño de fuente y color
-        // (los del subtítulo/fecha del encabezado). Se restaura aquí el
-        // estilo real del cuerpo de texto antes de seguir dibujando el
-        // párrafo, para que se vea idéntico en la página nueva.
+        // Delega en la misma primitiva centralizada (breakPage) que restaura
+        // fuente/tamaño/color/grosor de línea tras drawHeader(); aquí además
+        // se reafirma explícitamente el estilo capturado al entrar a esta
+        // función, por si difiere del que tenía la página justo antes de saltar.
+        y = breakPage();
         doc.setFont(bodyFont.fontName, bodyFont.fontStyle);
         doc.setFontSize(bodyFontSize);
         doc.setTextColor(bodyTextColor);
@@ -3220,8 +3252,9 @@ async function generarPDFClinico(){
       doc.setTextColor(bodyTextColor);
     }
     function newPage(){
-      doc.addPage(); drawHeader(); restoreBodyStyle();
-      return HEAD_BOTTOM+4;
+      const y2 = breakPage();
+      restoreBodyStyle();
+      return y2;
     }
     const paragraphs = String(text==null?'':text).split(/\n\s*\n/).map(s=>s.trim()).filter(Boolean);
     paragraphs.forEach((paragraph, idx)=>{
@@ -3279,42 +3312,75 @@ async function generarPDFClinico(){
     });
     return y;
   }
-  // Bloque de viñetas reutilizado por el Plan de Intervención Fisioterapéutica (objetivos,
-  // intervenciones, recomendaciones son listas variables según el paciente). El subtítulo
-  // nunca queda huérfano: se reserva junto a él el alto de su primera viñeta.
+  // ---- Primitivas genéricas de líneas/viñetas (regla 9: un único sistema
+  // reutilizado por TODOS los bloques de lista del informe: banderas clínicas,
+  // objetivos, intervenciones, recomendaciones, conclusiones, etc.) ----
+  // Estima el alto total (mm) de un conjunto de líneas de texto ya envueltas a
+  // un ancho dado. Se usa para reservar el bloque COMPLETO (no solo la primera
+  // línea) antes de decidir si conviene saltar de página (regla 5/6).
+  function estimateLinesHeight(lines, width, fontSize, lineH, gap){
+    if(!lines || !lines.length) return 0;
+    doc.setFont('helvetica','normal'); doc.setFontSize(fontSize);
+    let h = 0;
+    lines.forEach(txt=>{
+      const wrapped = doc.splitTextToSize(txt, width);
+      h += wrapped.length*lineH + gap;
+    });
+    return h;
+  }
+  // Dibuja líneas ya posicionadas; cada línea se trata como el elemento
+  // atómico mínimo de corte (regla 7): checkBreak solo puede saltar de página
+  // ENTRE líneas completas, nunca a mitad de una. Como checkBreak restaura el
+  // estado gráfico tras el salto (regla 8), no hace falta refijar fuente/color
+  // dentro del bucle salvo que una línea necesite un estilo propio (applyStyleFn).
+  function drawLines(y, lines, width, x, lineH, gap, applyStyleFn){
+    lines.forEach((txt, idx)=>{
+      const wrapped = doc.splitTextToSize(txt, width);
+      y = checkBreak(y, wrapped.length*lineH + gap);
+      if(applyStyleFn) applyStyleFn(idx);
+      doc.text(wrapped, x, y);
+      y += wrapped.length*lineH + gap;
+    });
+    return y;
+  }
+  function estimateBulletsHeight(items, width, fontSize, lineH, itemGap){
+    return estimateLinesHeight((items||[]).map(it=>'•  '+it), width, fontSize, lineH, itemGap);
+  }
+  function drawBulletItems(y, items, width, x, lineH, itemGap){
+    return drawLines(y, items.map(it=>'•  '+it), width, x, lineH, itemGap);
+  }
+  // Bloque de viñetas reutilizado por el Plan de Intervención Fisioterapéutica
+  // (objetivos, intervenciones, recomendaciones son listas variables según el
+  // paciente) y por cualquier otra lista de viñetas del informe. Regla 6: cada
+  // lista se comporta como un bloque independiente — se calcula su alto TOTAL
+  // (título + todas las viñetas) y, si cabe entera en una página, se traslada
+  // completa a una página nueva en vez de partirla dejando unas viñetas arriba
+  // y otras abajo. Solo si la lista por sí sola es más grande que una página
+  // completa se permite repartirla, y únicamente entre viñetas completas
+  // (drawBulletItems nunca corta una viñeta a la mitad).
   function planBulletBlock(y, titulo, items){
     if(!items || !items.length) return y;
-    // El ajuste de línea de la primera viñeta se calcula con la fuente normal
-    // de 9.3 (la misma con la que se dibujan las viñetas más abajo), para que
-    // la estimación de espacio coincida con el renderizado real.
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.3);
-    const primerWrap = doc.splitTextToSize('•  '+items[0], CONTENT_W-2);
-    y = checkBreak(y, 5 + primerWrap.length*4.6 + 2);
+    const width = CONTENT_W-2, lineH = 4.6, itemGap = 2;
+    const itemsHeight = estimateBulletsHeight(items, width, 9.3, lineH, itemGap);
+    y = ensureBlockFitsOrBreak(y, 5 + itemsHeight);
     doc.setFont('helvetica','bold'); doc.setFontSize(9.8); doc.setTextColor(...COLOR.ink);
     doc.text(titulo, MARGIN, y); y += 5;
     doc.setFont('helvetica','normal'); doc.setFontSize(9.3); doc.setTextColor(...COLOR.ink);
-    items.forEach(line=>{
-      const wrapped = doc.splitTextToSize('•  '+line, CONTENT_W-2);
-      y = checkBreak(y, wrapped.length*4.6 + 2);
-      doc.text(wrapped, MARGIN+2, y);
-      y += wrapped.length*4.6 + 2;
-    });
+    y = drawBulletItems(y, items, width, MARGIN+2, lineH, itemGap);
     return y + 2;
   }
   // Bloque de texto reutilizado por Frecuencia sugerida / Duración estimada del plan y por
-  // párrafos largos (p. ej. Análisis Clínico Fisioterapéutico). El subtítulo (si existe)
-  // nunca queda huérfano: se reserva junto a él el alto de al menos las 2 primeras líneas.
-  // El cuerpo del texto fluye entre páginas mediante drawFlowingText (ver arriba) en vez de
-  // saltar completo a la página siguiente, evitando espacios en blanco innecesarios.
+  // párrafos largos (p. ej. Análisis Clínico Fisioterapéutico). Regla 6: el título (si existe)
+  // y el cuerpo se tratan como un bloque único — se reserva su alto TOTAL (no solo 2 líneas),
+  // así que si el bloque completo cabe en una página, título y texto se trasladan siempre
+  // juntos a la página nueva. Solo cuando el texto por sí solo supera una página completa
+  // (p. ej. el Análisis Clínico) se permite que fluya entre páginas, y drawFlowingParagraphs
+  // se encarga de que ese reparto ocurra únicamente entre párrafos u oraciones completas.
   function planTextBlock(y, titulo, texto){
     const lineH = 4.6;
-    // El ajuste de línea se calcula con la MISMA fuente/tamaño con que se va a
-    // dibujar el texto (9.3 normal), para que los saltos de línea coincidan
-    // exactamente con lo que luego se renderiza.
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.3);
-    const wrapped = doc.splitTextToSize(texto, CONTENT_W-2);
-    const primerasLineas = Math.min(wrapped.length, 2);
-    y = checkBreak(y, (titulo?5:0) + primerasLineas*lineH + 2);
+    const width = CONTENT_W-2;
+    const bodyHeight = estimateParagraphsHeight(texto, width, 9.3, lineH);
+    y = ensureBlockFitsOrBreak(y, (titulo?5:0) + bodyHeight);
     if(titulo){
       doc.setFont('helvetica','bold'); doc.setFontSize(9.8); doc.setTextColor(...COLOR.ink);
       doc.text(titulo, MARGIN, y); y += 5;
@@ -3448,28 +3514,23 @@ async function generarPDFClinico(){
     ['METs de la actividad prescrita', met.valor? (met.actividad||'Actividad seleccionada')+' · '+met.valor+' METs ('+met.kcal.toFixed(0)+' kcal/sesión)' : 'No calculado'],
   ]);
 
-  // 5. Banderas clínicas
-  y = sectionTitle(y, 'Banderas clínicas identificadas');
+  // 5. Banderas clínicas. Regla 6: título + lista se tratan como un único
+  // bloque — se reserva su alto TOTAL antes del título para que, si cabe
+  // entera en una página, la lista completa se traslade junto con el título.
   const flags = [];
   if(n.imcCat && (n.imcCat==='Bajo peso'||n.imcCat==='Obesidad')) flags.push('IMC alterado');
   if(n.mnaTxt && n.mnaTxt!=='Estado nutricional normal') flags.push('Riesgo nutricional');
   if(d.dinapenia) flags.push('Dinapenia');
   if(f.txt && f.txt!=='Robusto') flags.push('Fragilidad: '+f.txt);
   if(bal.txt && bal.txt!=='Balance energético adecuado') flags.push('Desbalance energético');
-  doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
-  if(flags.length){
-    flags.forEach(fl=>{
-      y = checkBreak(y, 6);
-      doc.setTextColor(...COLOR.coral);
-      doc.text('⚠ '+fl, MARGIN, y);
-      y += 6;
-    });
-  } else {
-    y = checkBreak(y, 6);
-    doc.setTextColor(...COLOR.green);
-    doc.text('✓ Sin banderas de alarma relevantes', MARGIN, y);
-    y += 6;
-  }
+  const flagLines = flags.length ? flags.map(fl=>'⚠ '+fl) : ['✓ Sin banderas de alarma relevantes'];
+  const flagsHeight = estimateLinesHeight(flagLines, CONTENT_W-2, 9.5, 6, 0);
+  y = ensureBlockFitsOrBreak(y, SECTION_TITLE_H + flagsHeight);
+  y = sectionTitle(y, 'Banderas clínicas identificadas', flagsHeight);
+  y = drawLines(y, flagLines, CONTENT_W-2, MARGIN, 6, 0, ()=>{
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+    doc.setTextColor(...(flags.length?COLOR.coral:COLOR.green));
+  });
   y += 3;
 
   // Escalas sugeridas según patología
@@ -3516,16 +3577,16 @@ async function generarPDFClinico(){
   y = planTextBlock(y, 'Duración estimada', plan.duracion);
   y = planBulletBlock(y, 'Recomendaciones fisioterapéuticas', plan.recomendaciones);
 
-  // 7. Conclusiones y recomendaciones fisioterapéuticas
-  y = sectionTitle(y, 'Conclusiones y recomendaciones fisioterapéuticas');
-  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...COLOR.ink);
+  // 7. Conclusiones y recomendaciones fisioterapéuticas. Regla 6: se calcula
+  // el alto TOTAL del bloque (título + todas las viñetas) antes de imprimir
+  // nada — si cabe entera en una página, la lista completa se traslada junto
+  // con el título en vez de partirse dejando unas viñetas arriba y otras abajo.
   const conclusionLines = buildConclusionesHTML(recordDesdeState()).split('\n').map(l=>l.replace(/^•\s*/,''));
-  conclusionLines.forEach(line=>{
-    const wrapped = doc.splitTextToSize('•  '+line, CONTENT_W);
-    y = checkBreak(y, wrapped.length*5 + 3);
-    doc.text(wrapped, MARGIN, y);
-    y += wrapped.length*5 + 3;
-  });
+  const conclusionesHeight = estimateBulletsHeight(conclusionLines, CONTENT_W, 9.5, 5, 3);
+  y = ensureBlockFitsOrBreak(y, SECTION_TITLE_H + conclusionesHeight);
+  y = sectionTitle(y, 'Conclusiones y recomendaciones fisioterapéuticas', conclusionesHeight);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...COLOR.ink);
+  y = drawBulletItems(y, conclusionLines, CONTENT_W, MARGIN, 5, 3);
 
   // 8. Registro fotográfico del paciente
   const fotosPdf = normalizarAnexosFotograficos(state.anexos).registroFotografico;
