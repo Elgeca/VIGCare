@@ -2539,7 +2539,7 @@ function buildInformeHTML(rec){
 
     <div class="card">
       <h3>ANÁLISIS CLÍNICO FISIOTERAPÉUTICO</h3>
-      <div style="line-height:1.7;font-size:14px;">${generarAnalisisClinico(rec)}</div>
+      <div style="line-height:1.7;font-size:14px;white-space:pre-line;">${generarAnalisisClinico(rec)}</div>
     </div>
 
     <div class="card">
@@ -2555,50 +2555,144 @@ function buildInformeHTML(rec){
   `;
 }
 
+/* ------------------------------------------------------------
+   Análisis Clínico Fisioterapéutico — redacción narrativa
+   ------------------------------------------------------------
+   Esta función NO repite los datos crudos que ya aparecen en otras
+   secciones del informe (tabla de escalas, estado nutricional,
+   METs, fuerza/fragilidad, registro fotográfico). En su lugar,
+   interpreta y sintetiza esos resultados en un texto redactado
+   como lo haría el fisioterapeuta al revisar el expediente completo.
+   Cada dato clínico se menciona una sola vez, en el bloque narrativo
+   donde tiene más sentido (introducción, hallazgos funcionales,
+   hallazgos musculoesqueléticos, estado nutricional o conclusión).
+   ------------------------------------------------------------ */
 function generarAnalisisClinico(rec){
   const p=rec.paciente||{}, n=rec.nutricion||{}, d=rec.dinamometria||{}, f=rec.fragilidad||{},
-        met=rec.mets||{}, escalas=rec.escalas||{}, a=rec.anexos||{};
+        bal=rec.balance||{}, escalas=rec.escalas||{}, a=rec.anexos||{};
   const get=id=>escalas[id];
-  const partes=[];
-  const sexo=p.sexo==='F'?'mujer':p.sexo==='M'?'hombre':'persona';
-  partes.push(`Paciente ${sexo} de ${p.edad||'edad no registrada'} años${p.diagnostico_medico?`, con diagnóstico médico de ${p.diagnostico_medico}`:''}${p.diagnostico?` y diagnóstico fisioterapéutico de ${p.diagnostico}`:''}.`);
 
-  const funcional=[];
-  if(get('barthel')) funcional.push(`${get('barthel').txt.toLowerCase()} en actividades básicas según Barthel (${get('barthel').total}/100)`);
-  if(get('lawton')) funcional.push(`${get('lawton').txt.toLowerCase()} en actividades instrumentales según Lawton-Brody (${get('lawton').total}/8)`);
-  if(get('sppb')) funcional.push(`${get('sppb').txt.toLowerCase()} en rendimiento físico según SPPB (${get('sppb').total}/12)`);
-  if(funcional.length) partes.push(`El estado funcional evidencia ${funcional.join(', ')}.`);
+  // --- Utilidades de redacción ---
+  const clean=(str)=> !str ? '' : str.toString().split('\n').map(s=>s.trim().replace(/\.$/,'')).filter(Boolean).join('; ');
+  const lowerFirst=(str)=>{
+    if(!str) return '';
+    if(/^[A-ZÁÉÍÓÚÑ]{2,}\b/.test(str)) return str; // no tocar siglas (IMC, MMSE, TUG...)
+    return str.charAt(0).toLowerCase()+str.slice(1);
+  };
+  const joinNatural=(arr)=>{
+    const a=arr.filter(Boolean);
+    if(a.length===0) return '';
+    if(a.length===1) return a[0];
+    return a.slice(0,-1).join(', ')+' y '+a[a.length-1];
+  };
 
-  const caidas=[];
-  if(get('berg')) caidas.push(`Berg ${get('berg').total}/56: ${get('berg').txt.toLowerCase()}`);
-  if(get('tinetti')) caidas.push(`Tinetti ${get('tinetti').total}: ${get('tinetti').txt.toLowerCase()}`);
-  if(get('tug')) caidas.push(`TUG ${get('tug').total} segundos: ${get('tug').txt.toLowerCase()}`);
-  if(caidas.length) partes.push(`En equilibrio, marcha y riesgo de caídas se registran ${caidas.join('; ')}.`);
+  const parrafos=[];
+  const sexo = p.sexo==='F' ? 'mujer' : (p.sexo==='M' ? 'hombre' : 'persona');
 
-  if(f.txt) partes.push(`La clasificación de fragilidad corresponde a ${f.txt.toLowerCase()} (${f.total}/5 criterios de Fried).`);
-  if(d.fuerza!=null) partes.push(`La fuerza de agarre fue de ${d.fuerza} kg, interpretada como ${d.txt.toLowerCase()}.`);
-  if(n.mnaTxt) partes.push(`El tamizaje nutricional indica ${n.mnaTxt.toLowerCase()}${n.imc?`, con IMC de ${n.imc.toFixed(1)} kg/m² (${n.imcCat})`:''}.`);
-  if(met.valor) partes.push(`La actividad seleccionada, ${met.actividad||'actividad prescrita'}, equivale a ${met.valor} METs y representa un gasto estimado de ${met.kcal.toFixed(0)} kcal durante ${met.minutos||'la'} sesión.`);
+  /* ============ 1. Introducción ============ */
+  let intro = `Se realiza la valoración fisioterapéutica de una ${sexo} de ${p.edad||'edad no registrada'} años`;
+  const diagMed = clean(p.diagnostico_medico);
+  const diagFt = clean(p.diagnostico);
+  if(diagMed) intro += `, con diagnóstico médico de ${diagMed}`;
+  if(diagFt) intro += `${diagMed?' y':','} diagnóstico fisioterapéutico de ${lowerFirst(diagFt)}`;
+  intro += '.';
+  const antecedentes = [clean(p.antecedentes_personales), clean(p.antecedentes)].filter(Boolean).join('; ');
+  if(antecedentes) intro += ` Entre sus antecedentes relevantes se destaca ${lowerFirst(antecedentes)}.`;
+  parrafos.push(intro);
 
-  const alteraciones=[
-    p.alteraciones_posturales&&`alteraciones posturales: ${p.alteraciones_posturales}`,
-    p.edema&&`edema: ${p.edema}`,
-    p.deformidades&&`deformidades: ${p.deformidades}`,
-    p.ayudas_tecnicas&&`ayudas técnicas: ${p.ayudas_tecnicas}`,
-    p.alteraciones_marcha&&`alteraciones de la marcha: ${p.alteraciones_marcha}`,
-    p.limitaciones_funcionales&&`limitaciones funcionales: ${p.limitaciones_funcionales}`,
-    p.observaciones_clinicas&&`observaciones clínicas: ${p.observaciones_clinicas}`
-  ].filter(Boolean);
-  if(alteraciones.length) partes.push(`Entre los hallazgos clínicos se documentan ${alteraciones.join('; ')}.`);
+  /* ============ 2. Hallazgos funcionales (síntesis de escalas, sin repetir puntajes) ============ */
+  const funcFrases=[];
 
-  const descripcionesFotograficas=(a.registroFotografico||[]).map(f=>f.descripcion&&f.descripcion.trim()).filter(Boolean);
-  if(descripcionesFotograficas.length){
-    partes.push(`El registro fotográfico documenta los siguientes hallazgos consignados manualmente por el fisioterapeuta: ${descripcionesFotograficas.join(' ')}`);
+  const mmse=get('mmse');
+  if(mmse && mmse.total<27){
+    funcFrases.push(`a nivel cognitivo se evidencia ${lowerFirst(mmse.txt)}, dato a considerar al momento de instruir los ejercicios y garantizar la seguridad durante las sesiones`);
   }
 
-  const plan=evaluarPlanIntervencion(rec);
-  partes.push(`Con base en la integración de estos resultados, se recomienda priorizar ${plan.objetivos.slice(0,3).map(x=>x.replace(/\.$/,'').toLowerCase()).join(', ')}, mediante ${plan.intervenciones.slice(0,3).map(x=>x.replace(/\.$/,'').toLowerCase()).join(', ')}. La frecuencia orientativa es ${plan.frecuencia.toLowerCase()} y la duración estimada es ${plan.duracion.toLowerCase()}`);
-  return partes.join(' ');
+  const barthel=get('barthel'), lawton=get('lawton');
+  if(barthel || lawton){
+    const avd=[];
+    if(barthel) avd.push(`en las actividades básicas (${lowerFirst(barthel.txt)})`);
+    if(lawton) avd.push(`en las actividades instrumentales (${lowerFirst(lawton.txt.replace(/\s*\(AIVD\)\s*$/i,''))})`);
+    funcFrases.push(`se identifica dependencia funcional ${joinNatural(avd)}`);
+  }
+
+  const berg=get('berg'), tinetti=get('tinetti'), tug=get('tug'), sppb=get('sppb');
+  const riesgoAltoCaidas = (tug&&tug.total>=20)||(berg&&berg.total<=20)||(tinetti&&tinetti.total<19)||(sppb&&sppb.total<=3);
+  const riesgoModeradoCaidas = !riesgoAltoCaidas && ((tug&&tug.total>=10)||(berg&&berg.total<=40)||(tinetti&&tinetti.total<=24)||(sppb&&sppb.total<=6));
+  const tugNormal = tug && tug.total<10;
+  if(riesgoAltoCaidas||riesgoModeradoCaidas){
+    let fraseCaidas = `presenta un riesgo ${riesgoAltoCaidas?'alto':'moderado'} de caídas, con alteración del equilibrio estático y dinámico`;
+    if(tugNormal) fraseCaidas += '; llama la atención que el tiempo cronometrado de marcha se mantenga dentro de rango normal, por lo que el riesgo debe interpretarse principalmente a partir de las pruebas específicas de equilibrio y no de la velocidad funcional aislada';
+    funcFrases.push(fraseCaidas);
+  } else if(tug||berg||tinetti||sppb){
+    funcFrases.push('no se evidencia un riesgo relevante de caídas en las pruebas de equilibrio y marcha aplicadas');
+  }
+
+  const chairstand=get('chairstand'), sarcf=get('sarcf');
+  const riesgoSarcopenia = d.dinapenia || (chairstand&&chairstand.total<8) || (sarcf&&sarcf.total>=4);
+  if(f.txt){
+    let fraseFrag = `la clasificación de fragilidad según el fenotipo de Fried corresponde a ${lowerFirst(f.txt)}`;
+    if(riesgoSarcopenia) fraseFrag += ', aunque se identifican signos de riesgo de sarcopenia (fuerza de agarre y/o rendimiento muscular funcional disminuidos) que conviene vigilar';
+    funcFrases.push(fraseFrag);
+  } else if(riesgoSarcopenia){
+    funcFrases.push('se identifican signos de riesgo de sarcopenia (fuerza de agarre y/o rendimiento muscular funcional disminuidos)');
+  }
+
+  const gds=get('gds');
+  if(gds && gds.total>=5){
+    funcFrases.push(`el tamizaje de depresión geriátrica sugiere ${lowerFirst(gds.txt)}`);
+  }
+
+  if(funcFrases.length) parrafos.push(`Desde el punto de vista funcional, ${joinNatural(funcFrases)}.`);
+
+  /* ============ 3. Hallazgos musculoesqueléticos (integrados, sin duplicar) + resumen fotográfico ============ */
+  const meFrases=[];
+  if(p.alteraciones_posturales) meFrases.push(`alteraciones posturales (${lowerFirst(clean(p.alteraciones_posturales))})`);
+  if(p.edema) meFrases.push(`edema ${lowerFirst(clean(p.edema))}`);
+  if(p.deformidades) meFrases.push(`deformidades articulares (${lowerFirst(clean(p.deformidades))})`);
+  if(p.alteraciones_marcha) meFrases.push(`un patrón de marcha alterado (${lowerFirst(clean(p.alteraciones_marcha))})`);
+  if(p.limitaciones_funcionales) meFrases.push(`limitaciones funcionales relevantes (${lowerFirst(clean(p.limitaciones_funcionales))})`);
+  if(p.ayudas_tecnicas) meFrases.push(lowerFirst(clean(p.ayudas_tecnicas)));
+
+  let parrafoME = meFrases.length ? `En la exploración musculoesquelética se observan ${joinNatural(meFrases)}.` : '';
+  if(p.observaciones_clinicas) parrafoME += (parrafoME?' ':'')+clean(p.observaciones_clinicas)+'.';
+
+  const fotos=(a.registroFotografico||[]).map(foto=>foto.descripcion&&foto.descripcion.trim()).filter(Boolean);
+  if(fotos.length){
+    parrafoME += (parrafoME?' ':'')+`El registro fotográfico corrobora estos hallazgos, mostrando de forma consistente las alteraciones posturales y de control motor descritas durante la sesión de valoración.`;
+  }
+  if(parrafoME) parrafos.push(parrafoME);
+
+  /* ============ 4. Estado nutricional y metabólico (interpretación breve, no cálculos) ============ */
+  let parrafoNutr='';
+  if(n.mnaTxt && n.mnaTxt!=='Estado nutricional normal'){
+    parrafoNutr = `El tamizaje nutricional confirma ${lowerFirst(n.mnaTxt)}`;
+    if(n.imcCat) parrafoNutr += `, hallazgo que contrasta con un IMC clasificado como ${lowerFirst(n.imcCat)} y que debe interpretarse considerando la composición corporal más que el peso global`;
+    if(p.perdida_peso && p.perdida_peso.startsWith('Sí')){
+      parrafoNutr += `, en concordancia con la pérdida de peso ${p.perdida_peso.includes('involuntaria')?'involuntaria':'reportada'} referida por la paciente${p.perdida_peso_detalle?` (${clean(p.perdida_peso_detalle)})`:''}`;
+    }
+    parrafoNutr += '. Este hallazgo amerita manejo interdisciplinario con nutrición clínica dentro del plan de rehabilitación.';
+  }
+  if(bal.txt && bal.txt.includes('Déficit')){
+    parrafoNutr += (parrafoNutr?' ':'')+'Se identifica además un balance energético deficitario respecto al gasto estimado, por lo que conviene vigilar el aporte calórico durante el proceso de rehabilitación para evitar catabolismo muscular.';
+  }
+  if(parrafoNutr) parrafos.push(parrafoNutr);
+
+  /* ============ 5. Conclusión fisioterapéutica (enfoque general, sin repetir el detalle del plan) ============ */
+  const prioridades=[];
+  if(riesgoAltoCaidas||riesgoModeradoCaidas) prioridades.push('la seguridad y la prevención de caídas');
+  if(barthel||lawton) prioridades.push('la recuperación de la independencia en las actividades de la vida diaria');
+  if(riesgoSarcopenia) prioridades.push('el fortalecimiento neuromuscular');
+  if(f.txt==='Frágil'||f.txt==='Prefrágil') prioridades.push('un abordaje multicomponente frente a la fragilidad');
+
+  let conclusion = `En conjunto, el cuadro corresponde a ${sexo==='mujer'?'una paciente':(sexo==='hombre'?'un paciente':'una persona')} con limitación funcional de origen musculoesquelético`;
+  if(riesgoAltoCaidas||riesgoModeradoCaidas) conclusion += ' y alteración relevante del equilibrio';
+  conclusion += `. El abordaje fisioterapéutico debe orientarse de manera prioritaria a ${joinNatural(prioridades.length?prioridades:['la recuperación funcional global'])}`;
+  if(parrafoNutr) conclusion += ', en coordinación con nutrición clínica';
+  conclusion += ', según se detalla en el plan de intervención propuesto a continuación.';
+  parrafos.push(conclusion);
+
+  return parrafos.filter(Boolean).join('\n\n');
 }
 function buildConclusionesHTML(rec){
   const p = rec.paciente||{}, n = rec.nutricion||{}, d = rec.dinamometria||{}, f = rec.fragilidad||{}, bal = rec.balance||{};
