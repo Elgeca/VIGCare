@@ -358,6 +358,26 @@
     table.pac-table td{border-bottom:none;padding:3px 0;}
     table.pac-table td::before{content:attr(data-label);display:block;font-family:var(--mono);font-size:10px;color:var(--ink-soft);text-transform:uppercase;}
   }
+  /* ---------- AUTOCOMPLETADO METs Y REGISTRO FOTOGRÁFICO ---------- */
+  .autocomplete-wrap{position:relative;}
+  .autocomplete-list{position:absolute;left:0;right:0;top:100%;z-index:30;background:var(--card);border:1.5px solid var(--line);border-radius:9px;box-shadow:0 10px 28px rgba(var(--shadow-rgb),.12);max-height:260px;overflow:auto;margin-top:4px;}
+  .autocomplete-item{padding:10px 12px;cursor:pointer;border-bottom:1px dashed var(--line);font-size:13px;}
+  .autocomplete-item:last-child{border-bottom:none;}
+  .autocomplete-item:hover,.autocomplete-item.active{background:var(--violet-soft);color:var(--teal-deep);}
+  .foto-registro-item{border-top:1px dashed var(--line);margin-top:18px;padding-top:18px;}
+  .foto-registro-item:first-child{border-top:none;margin-top:0;padding-top:0;}
+  .foto-registro-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;}
+  .foto-registro-head h4{margin:0;font-size:14px;color:var(--teal-deep);font-family:var(--mono);text-transform:uppercase;letter-spacing:.04em;}
+  .foto-registro-preview{min-height:90px;border:1.5px dashed var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:center;background:var(--input-bg);margin:10px 0 14px;}
+  .foto-registro-preview img{display:block;max-width:100%;max-height:430px;width:auto;height:auto;object-fit:contain;border-radius:10px;border:1px solid var(--line);}
+  .foto-registro-placeholder{font-size:12.5px;color:var(--ink-soft);text-align:center;line-height:1.5;}
+  .foto-descripcion{min-height:150px;line-height:1.6;}
+  .foto-registro-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .foto-registro-actions input[type="file"]{max-width:100%;}
+  .foto-registro-report{page-break-inside:avoid;break-inside:avoid;margin-bottom:22px;}
+  .foto-registro-report h4{margin:0 0 10px;font-size:14px;color:var(--teal-deep);}
+  .foto-registro-report .descripcion-clinica{white-space:pre-line;line-height:1.65;font-size:13.5px;margin-top:12px;}
+
 </style>
 </head>
 <body>
@@ -543,7 +563,7 @@
 
       <div class="card">
         <h3><span class="hnum">5</span> Diagnóstico médico</h3>
-        <div class="field"><label>Diagnóstico médico</label><textarea id="r_diagnostico_medico" placeholder="Diagnóstico médico emitido por el especialista tratante..."></textarea></div>
+        <div class="field"><label>Diagnóstico médico</label><textarea id="r_diagnostico_medico" placeholder="Diagnóstico médico emitido por el especialista tratante..." oninput="mostrarEscalasRecomendadas()"></textarea></div>
       </div>
 
       <div class="card">
@@ -553,7 +573,25 @@
 
       <div class="card">
         <h3><span class="hnum">7</span> Diagnóstico fisioterapéutico</h3>
-        <div class="field"><label>Diagnóstico fisioterapéutico</label><textarea id="r_diagnostico" placeholder="Ej. Gonartrosis bilateral, sarcopenia sospechada..."></textarea></div>
+        <div class="field"><label>Diagnóstico fisioterapéutico</label><textarea id="r_diagnostico" placeholder="Ej. Gonartrosis bilateral, sarcopenia sospechada..." oninput="mostrarEscalasRecomendadas()"></textarea></div>
+        <div id="r_escalas_recomendadas"></div>
+      </div>
+
+      <div class="card">
+        <h3>ALTERACIONES CLÍNICAS</h3>
+        <div class="grid2">
+          <div class="field"><label>Alteraciones posturales</label><textarea id="r_alt_posturales" placeholder="Describa las alteraciones posturales encontradas..."></textarea></div>
+          <div class="field"><label>Edema</label><textarea id="r_alt_edema" placeholder="Localización, grado y características..."></textarea></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label>Deformidades</label><textarea id="r_alt_deformidades" placeholder="Describa deformidades relevantes..."></textarea></div>
+          <div class="field"><label>Ayudas técnicas</label><textarea id="r_alt_ayudas" placeholder="Bastón, andador, silla de ruedas, órtesis..."></textarea></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label>Alteraciones de la marcha</label><textarea id="r_alt_marcha" placeholder="Patrón, simetría, base de sustentación, velocidad..."></textarea></div>
+          <div class="field"><label>Limitaciones funcionales</label><textarea id="r_alt_limitaciones" placeholder="Transferencias, desplazamientos, AVD u otras limitaciones..."></textarea></div>
+        </div>
+        <div class="field"><label>Observaciones clínicas</label><textarea id="r_alt_observaciones" placeholder="Otros hallazgos relevantes de la valoración fisioterapéutica..."></textarea></div>
       </div>
 
       <div class="card">
@@ -664,8 +702,17 @@
     <section class="section" id="sec-metabolismo" data-num="4">
       <div class="eyebrow">04 · Gasto energético</div>
       <h2 class="title">Metabolismo Basal y Gasto Energético</h2>
-      <p class="lede">Tasa metabólica basal (Mifflin-St Jeor) y Gasto Energético Total según nivel de actividad.</p>
+      <p class="lede">Tasa metabólica basal (TMB × Factor de actividad) y Gasto Energético Total según nivel de actividad.</p>
       <div class="card">
+        <h3>Tasa Metabólica Basal (TMB)</h3>
+        <p style="font-size:13px;color:var(--ink-soft);line-height:1.5;">Cálculo automático mediante Mifflin-St Jeor utilizando peso, talla, edad y sexo registrados.</p>
+        <button class="ghost" onclick="calcTMB()">Calcular TMB</button>
+        <div id="m_result_tmb"></div>
+        <p class="cite">Interpretación clínica: la TMB representa el gasto energético mínimo estimado para mantener las funciones vitales en reposo.</p>
+      </div>
+
+      <div class="card">
+        <h3>Gasto Energético Total (GET)</h3>
         <div class="field"><label>Factor de actividad física</label>
           <select id="m_factor">
             <option value="1.2">Sedentario (1.2)</option>
@@ -675,9 +722,9 @@
             <option value="1.9">Muy activo (1.9)</option>
           </select>
         </div>
-        <button class="ghost" onclick="calcMetabolismo()">Calcular BMR y GET</button>
-        <div id="m_result"></div>
-        <p class="cite">Interpretación clínica: el metabolismo basal representa el gasto energético mínimo necesario para mantener las funciones vitales.</p>
+        <button class="ghost" onclick="calcGET()">Calcular GET</button>
+        <div id="m_result_get"></div>
+        <p class="cite">Interpretación clínica: el GET ajusta la TMB al nivel habitual de actividad física del paciente.</p>
       </div>
     </section>
 
@@ -707,16 +754,11 @@
       <p class="lede">Equivalente metabólico de la actividad prescrita y estimación de gasto calórico por sesión.</p>
       <div class="card">
         <div class="grid2">
-          <div class="field"><label>Actividad física</label>
-            <select id="mets_actividad">
-              <option value="1.5">Sedestación / actividades de mesa (1.5 METs)</option>
-              <option value="2.0">Marcha lenta domiciliaria (2.0 METs)</option>
-              <option value="2.5">Ejercicios terapéuticos suaves, sentado (2.5 METs)</option>
-              <option value="3.0">Marcha normal en llano (3.0 METs)</option>
-              <option value="3.5">Bicicleta estática, baja resistencia (3.5 METs)</option>
-              <option value="4.0">Marcha rápida / gimnasia geriátrica (4.0 METs)</option>
-              <option value="5.0">Subir escaleras a paso lento (5.0 METs)</option>
-            </select>
+          <div class="field autocomplete-wrap"><label>Actividad física</label>
+            <input id="mets_busqueda" autocomplete="off" placeholder="Escriba para buscar: caminar, bicicleta, hogar..." oninput="buscarActividadMET()" onfocus="buscarActividadMET()">
+            <input id="mets_actividad" type="hidden" value="1.5">
+            <div id="mets_autocomplete" class="autocomplete-list" style="display:none;"></div>
+            <div class="field-hint" id="mets_seleccion">Seleccione una actividad del compendio.</div>
           </div>
           <div class="field"><label>Duración de la sesión (minutos)</label><input id="mets_min" type="number" value="30"></div>
         </div>
@@ -777,13 +819,11 @@
       <h2 class="title">Informe Final Automatizado</h2>
       <p class="lede">Resumen ejecutivo de la V.I.G., generado a partir de todos los módulos completados. Imprime o exporta como PDF desde el navegador.</p>
       <div class="card noprint" style="margin-bottom:18px;">
-        <h3>Anexos del informe</h3>
-        <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;">Sube aquí la fotografía de la valoración; se incrustará directamente en el informe y en el PDF exportado.</p>
-        <div>
-          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Fotografía de la valoración</label>
-          <input type="file" accept="image/*" id="a_foto" onchange="handleAnexoUpload('fotoValoracion', this)">
-          <div id="a_foto_preview" style="margin-top:8px;"></div>
-        </div>
+        <h3>Registro Fotográfico del Paciente</h3>
+        <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;line-height:1.55;">Adjunte una o varias fotografías clínicas. Cada imagen conserva su propia vista, descripción y orden dentro del expediente y del PDF.</p>
+        <div id="registroFotograficoContainer"></div>
+        <button class="ghost" type="button" onclick="agregarRegistroFotografico()">＋ Agregar fotografía clínica</button>
+        <p class="cite">La descripción es registrada manualmente por el fisioterapeuta. La aplicación no analiza ni interpreta las fotografías.</p>
       </div>
       <div class="noprint" style="margin-bottom:18px;display:flex;gap:10px;">
         <button class="primary" onclick="generarInforme()">Generar / actualizar informe</button>
@@ -807,7 +847,7 @@
    detecte que hay contenido nuevo — ver iniciarComprobacionActualizaciones()
    más abajo. No es un dato de paciente, no toca PACIENTES_KEY.
    ============================================================ */
-const APP_VERSION = '2026.08.03-1';
+const APP_VERSION = '2026.08.05-REGISTRO-FOTO-1';
 
 /* ============================================================
    TEMA (claro / oscuro)
@@ -892,7 +932,7 @@ function iniciarComprobacionActualizaciones(){
 const state = {
   paciente:null, escalas:{}, nutricion:{}, metabolismo:{}, hidratacion:{},
   mets:{}, balance:{}, dinamometria:{}, fragilidad:{},
-  anexos:{ fotoValoracion:null },
+  anexos:{ registroFotografico:[] },
   editingId:null
 };
 
@@ -1034,6 +1074,7 @@ function limpiarFormularioRegistro(){
    'r_cuidador_nombre','r_cuidador_parentesco','r_cuidador_telefono',
    'r_peso','r_talla','r_circ_pantorrilla','r_circ_braquial','r_peso_habitual','r_peso_ideal','r_perdida_peso_detalle',
    'r_fecha','r_diagnostico_medico','r_diagnostico',
+   'r_alt_posturales','r_alt_edema','r_alt_deformidades','r_alt_ayudas','r_alt_marcha','r_alt_limitaciones','r_alt_observaciones',
    'r_antecedentes_personales','r_antecedentes','r_antecedentes_familiares','r_antecedentes_quirurgicos','r_medicacion','r_motivo',
    'r_pa','r_fc','r_spo2'].forEach(id=>{
     const el = document.getElementById(id); if(el) el.value='';
@@ -1044,6 +1085,7 @@ function limpiarFormularioRegistro(){
   const perdidaEl = document.getElementById('r_perdida_peso'); if(perdidaEl) perdidaEl.value = 'No';
   toggleCuidadorFields();
   actualizarIMCAuto();
+  mostrarEscalasRecomendadas();
   const chk = document.getElementById('r_consentimiento'); if(chk) chk.checked = false;
   document.getElementById('r_result').innerHTML = '';
 }
@@ -1073,13 +1115,12 @@ function dashNuevoPaciente(){
   state.paciente = null;
   state.escalas = {}; state.nutricion = {}; state.metabolismo = {}; state.hidratacion = {};
   state.mets = {}; state.balance = {}; state.dinamometria = {}; state.fragilidad = {};
-  state.anexos = { fotoValoracion:null };
+  state.anexos = { registroFotografico:[] };
   state.editingId = null;
   escalaActual = null;
   doneModules.clear();
   limpiarFormularioRegistro();
-  const fotoPrev = document.getElementById('a_foto_preview'); if(fotoPrev) fotoPrev.innerHTML='';
-  const fotoInput = document.getElementById('a_foto'); if(fotoInput) fotoInput.value='';
+  renderRegistroFotografico();
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('done'));
   updateProgress();
   document.getElementById('topName').textContent = 'Paciente sin registrar';
@@ -1253,6 +1294,45 @@ function updateProgress(){
 /* ============================================================
    1. REGISTRO
    ============================================================ */
+const REGLAS_ESCALAS_POR_PATOLOGIA = [
+  { claves:['parkinson','parkinsonismo'], escalas:['UPDRS','Hoehn & Yahr','Berg','Tinetti','Timed Up and Go (TUG)'] },
+  { claves:['acv','accidente cerebrovascular','ictus','evento cerebrovascular','hemiplejia'], escalas:['Escala de Rankin Modificada','Índice de Barthel','Fugl-Meyer','Ashworth Modificada','Berg'] },
+  { claves:['alzheimer','demencia'], escalas:['MMSE','Pfeiffer','Lawton-Brody','Índice de Barthel','GDS-15 de Yesavage'] },
+  { claves:['artrosis','osteoartritis','gonartrosis','coxartrosis'], escalas:['WOMAC','Escala Visual Analógica (EVA)','Índice de Barthel','Timed Up and Go (TUG)'] },
+  { claves:['fragilidad','fragil'], escalas:['FRAIL','Edmonton Frail Scale','Clinical Frailty Scale','SPPB'] },
+  { claves:['sarcopenia','dinapenia'], escalas:['SARC-F','Dinamometría','SPPB','Chair Stand Test'] },
+  { claves:['caida','caídas','inestabilidad','equilibrio'], escalas:['Berg','Tinetti','Timed Up and Go (TUG)','Alcance Funcional'] },
+  { claves:['epoc','enfermedad pulmonar obstructiva'], escalas:['mMRC','6-Minute Walk Test','Borg','SPPB'] },
+  { claves:['insuficiencia cardiaca','cardiopatia','cardiopatía'], escalas:['6-Minute Walk Test','Borg','Timed Up and Go (TUG)','SPPB'] },
+  { claves:['osteoporosis'], escalas:['Timed Up and Go (TUG)','Berg','Tinetti','Índice de Barthel'] },
+  { claves:['dolor lumbar','lumbalgia'], escalas:['Escala Visual Analógica (EVA)','Oswestry','Timed Up and Go (TUG)'] },
+  { claves:['fractura de cadera','protesis de cadera','prótesis de cadera'], escalas:['Índice de Barthel','Timed Up and Go (TUG)','Berg','SPPB'] }
+];
+
+function normalizarTextoClinico(valor){
+  return (valor||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+function obtenerEscalasRecomendadas(){
+  const med = document.getElementById('r_diagnostico_medico');
+  const fis = document.getElementById('r_diagnostico');
+  const texto = normalizarTextoClinico(`${med?med.value:''} ${fis?fis.value:''}`);
+  const sugeridas = [];
+  REGLAS_ESCALAS_POR_PATOLOGIA.forEach(regla=>{
+    if(regla.claves.some(k=>texto.includes(normalizarTextoClinico(k)))){
+      regla.escalas.forEach(e=>{ if(!sugeridas.includes(e)) sugeridas.push(e); });
+    }
+  });
+  return sugeridas;
+}
+function mostrarEscalasRecomendadas(){
+  const cont = document.getElementById('r_escalas_recomendadas');
+  if(!cont) return;
+  const sugeridas = obtenerEscalasRecomendadas();
+  cont.innerHTML = sugeridas.length
+    ? `<div class="result" style="margin-top:10px;"><strong>Escalas recomendadas según la patología registrada:</strong><div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;">${sugeridas.map(e=>`<span class="pill">${e}</span>`).join('')}</div><div class="field-hint" style="margin-top:7px;">Son sugerencias clínicas y no se seleccionan automáticamente. La tabla REGLAS_ESCALAS_POR_PATOLOGIA permite añadir nuevas patologías sin modificar la interfaz.</div></div>`
+    : '';
+}
+
 function guardarRegistro(){
   const peso = parseFloat(document.getElementById('r_peso').value);
   const talla = parseFloat(document.getElementById('r_talla').value);
@@ -1298,6 +1378,14 @@ function guardarRegistro(){
     diagnostico_medico: document.getElementById('r_diagnostico_medico').value,
     motivo: document.getElementById('r_motivo').value,
     diagnostico: document.getElementById('r_diagnostico').value,
+    // Alteraciones clínicas
+    alteraciones_posturales: document.getElementById('r_alt_posturales').value,
+    edema: document.getElementById('r_alt_edema').value,
+    deformidades: document.getElementById('r_alt_deformidades').value,
+    ayudas_tecnicas: document.getElementById('r_alt_ayudas').value,
+    alteraciones_marcha: document.getElementById('r_alt_marcha').value,
+    limitaciones_funcionales: document.getElementById('r_alt_limitaciones').value,
+    observaciones_clinicas: document.getElementById('r_alt_observaciones').value,
     // 8. Antecedentes
     antecedentes_personales: document.getElementById('r_antecedentes_personales').value,
     antecedentes: document.getElementById('r_antecedentes').value,
@@ -1357,7 +1445,7 @@ function normalizarRegistro(r){
     _id: r._id || ('legacy_'+(r.ts||Date.now())+'_'+Math.random().toString(36).slice(2,7)),
     paciente: { codigo:r.codigo, nombre:r.nombre, edad:r.edad, sexo:r.sexo, fecha:r.fecha },
     escalas:{}, nutricion:{}, metabolismo:{}, hidratacion:{}, mets:{}, balance:{},
-    dinamometria:{}, fragilidad:{}, anexos:{ fotoValoracion:null },
+    dinamometria:{}, fragilidad:{}, anexos:{ registroFotografico:[] },
     doneModules:[], legacy:true,
     createdAt:r.ts||Date.now(), updatedAt:r.ts||Date.now()
   };
@@ -1399,7 +1487,7 @@ function guardarPacienteCompleto(){
     balance: state.balance,
     dinamometria: state.dinamometria,
     fragilidad: state.fragilidad,
-    anexos: state.anexos,
+    anexos: normalizarAnexosFotograficos(state.anexos),
     doneModules: Array.from(doneModules),
     legacy:false,
     createdAt: anterior ? anterior.createdAt : Date.now(),
@@ -1440,7 +1528,7 @@ function cargarPacienteEnFormulario(id){
   state.balance = rec.balance || {};
   state.dinamometria = rec.dinamometria || {};
   state.fragilidad = rec.fragilidad || {};
-  state.anexos = rec.anexos || { fotoValoracion:null };
+  state.anexos = normalizarAnexosFotograficos(rec.anexos);
   state.editingId = rec._id;
   escalaActual = null;
 
@@ -1481,6 +1569,14 @@ function cargarPacienteEnFormulario(id){
   setVal('r_diagnostico_medico', p.diagnostico_medico);
   setVal('r_motivo', p.motivo);
   setVal('r_diagnostico', p.diagnostico);
+  setVal('r_alt_posturales', p.alteraciones_posturales);
+  setVal('r_alt_edema', p.edema);
+  setVal('r_alt_deformidades', p.deformidades);
+  setVal('r_alt_ayudas', p.ayudas_tecnicas);
+  setVal('r_alt_marcha', p.alteraciones_marcha);
+  setVal('r_alt_limitaciones', p.limitaciones_funcionales);
+  setVal('r_alt_observaciones', p.observaciones_clinicas);
+  mostrarEscalasRecomendadas();
   // 8. Antecedentes
   setVal('r_antecedentes_personales', p.antecedentes_personales);
   setVal('r_antecedentes', p.antecedentes);
@@ -1494,11 +1590,7 @@ function cargarPacienteEnFormulario(id){
   const chk = document.getElementById('r_consentimiento'); if(chk) chk.checked = !!p.consentimiento;
   document.getElementById('r_result').innerHTML = `<div class="result good">Expediente cargado. Los datos existentes se mantienen; guarda de nuevo para actualizar este mismo paciente.</div>`;
 
-  const fotoPrev = document.getElementById('a_foto_preview');
-  if(fotoPrev){
-    const foto = state.anexos && state.anexos.fotoValoracion;
-    fotoPrev.innerHTML = foto ? `<img src="${foto.dataUrl}" style="max-width:100%;max-height:140px;border-radius:8px;border:1px solid var(--line);">` : '';
-  }
+  renderRegistroFotografico();
 
   doneModules.clear();
   (rec.doneModules||[]).forEach(m=>doneModules.add(m));
@@ -1521,9 +1613,16 @@ function restaurarResultadosVisuales(){
   if(n.proteina!=null) put('n_result', `<div class="result good"><span class="big">${n.proteina.toFixed(0)} g proteína/día</span><span class="big" style="margin-top:6px;">${(n.calorias||0).toFixed(0)} kcal/día</span><span class="tag">Requerimiento estimado (guardado)</span></div>`);
   if(n.mna!=null) put('mna_result', `<div class="result ${n.mnaTxt==='Estado nutricional normal'?'good':(n.mnaTxt==='Riesgo de malnutrición'?'mid':'risk')}"><span class="big">${n.mna} / 14</span><span class="tag">${n.mnaTxt}</span></div>`);
   if(n.smm!=null) put('mm_result', `<div class="result good"><span class="big">${n.smm.toFixed(1)} kg</span><span class="tag">SMI: ${n.smi.toFixed(2)} kg/m²</span></div>`);
-  if(m.bmr!=null) put('m_result', `<div class="result good"><span class="big">TMB: ${m.bmr.toFixed(0)} kcal/día</span><span class="big" style="margin-top:6px;">GET: ${m.get.toFixed(0)} kcal/día</span><span class="tag">GET = TMB × Factor de actividad (guardado)</span></div>`);
+  if(m.bmr!=null) put('m_result_tmb', `<div class="result good"><span class="big">TMB: ${m.bmr.toFixed(0)} kcal/día</span><span class="tag">Fórmula Mifflin-St Jeor según sexo registrado (guardado)</span></div>`);
+  if(m.get!=null) put('m_result_get', `<div class="result good"><span class="big">GET: ${m.get.toFixed(0)} kcal/día</span><span class="tag">GET = TMB × Factor de actividad (guardado)</span></div>`);
   if(h.litros!=null) put('h_result', `<div class="result good"><span class="big">${h.litros.toFixed(2)} L / día</span></div>`);
-  if(met.valor!=null) put('mets_result', `<div class="result good"><span class="big">${met.kcal.toFixed(0)} kcal en la sesión</span><span class="tag">${met.valor} METs</span></div>`);
+  if(met.valor!=null){
+    put('mets_result', `<div class="result good"><span class="big">${met.kcal.toFixed(0)} kcal en la sesión</span><span class="tag">${met.actividad||'Actividad seleccionada'} · ${met.valor} METs</span></div>`);
+    const mb=document.getElementById('mets_busqueda'), mv=document.getElementById('mets_actividad'), ms=document.getElementById('mets_seleccion');
+    if(mb) mb.value=met.actividad||'';
+    if(mv) mv.value=met.valor;
+    if(ms) ms.textContent=`${met.categoria||'Actividad'} · ${met.valor} METs`;
+  }
   if(bal.pct!=null) put('bal_result', `<div class="result ${bal.txt==='Balance energético adecuado'?'good':(bal.txt&&bal.txt.includes('Superávit')?'mid':'risk')}"><span class="big">${bal.pct.toFixed(0)}% del GET</span><span class="tag">${bal.diff>=0?'+':''}${bal.diff.toFixed(0)} kcal/día — ${bal.txt}</span></div>`);
   if(d.fuerza!=null) put('d_result', `<div class="result ${d.dinapenia?'risk':'good'}"><span class="big">${d.fuerza} kg</span><span class="tag">${d.txt}</span></div>`);
   if(f.txt!=null) put('f_result', `<div class="result ${f.txt==='Robusto'?'good':(f.txt==='Prefrágil'?'mid':'risk')}"><span class="big">${f.total} / 5 criterios</span><span class="tag">${f.txt} (Fenotipo de Fried)</span></div>`);
@@ -1725,6 +1824,46 @@ const SCALES = [
       return ['Depresión severa — derivación prioritaria','risk'];
     }, max:15
   },
+  { id:'rankin', name:'Escala de Rankin Modificada (mRS)', sub:'Grado global de discapacidad después de un evento neurológico · 0-5 puntos',
+    items:[{label:'Nivel actual de discapacidad funcional', opts:[['0 - Sin síntomas',0],['1 - Sin discapacidad significativa',1],['2 - Discapacidad leve',2],['3 - Discapacidad moderada',3],['4 - Discapacidad moderadamente grave',4],['5 - Discapacidad grave',5]]}],
+    interpret:(s)=>{ if(s<=1)return ['Sin discapacidad funcional significativa','good']; if(s<=2)return ['Discapacidad leve','mid']; if(s<=3)return ['Discapacidad moderada','mid']; return ['Discapacidad grave','risk']; }, max:5
+  },
+  { id:'frail', name:'Escala FRAIL', sub:'Tamizaje breve de fragilidad · fatiga, resistencia, deambulación, enfermedades y pérdida de peso · máx. 5 puntos',
+    items:[
+      {label:'Fatiga frecuente',opts:[['No',0],['Sí',1]]},{label:'Dificultad para subir un tramo de escaleras',opts:[['No',0],['Sí',1]]},
+      {label:'Dificultad para caminar una cuadra o aproximadamente 100-200 metros',opts:[['No',0],['Sí',1]]},
+      {label:'Cinco o más enfermedades crónicas',opts:[['No',0],['Sí',1]]},{label:'Pérdida involuntaria de más del 5% del peso',opts:[['No',0],['Sí',1]]}
+    ],
+    interpret:(s)=>{ if(s===0)return ['Robusto','good']; if(s<=2)return ['Prefrágil','mid']; return ['Frágil','risk']; }, max:5
+  },
+  { id:'edmonton', name:'Edmonton Frail Scale', sub:'Valoración multidimensional de fragilidad · versión clínica resumida · máx. 17 puntos',
+    items:[
+      {label:'Cognición',opts:[['Sin errores',0],['Errores leves',1],['Errores importantes',2]]},
+      {label:'Estado general de salud',opts:[['Favorable',0],['Intermedio',1],['Desfavorable',2]]},
+      {label:'Independencia funcional',opts:[['Independiente',0],['Dependencia parcial',1],['Dependencia importante',2]]},
+      {label:'Apoyo social',opts:[['Siempre disponible',0],['A veces',1],['No disponible',2]]},
+      {label:'Uso de medicamentos',opts:[['Sin polifarmacia',0],['Polifarmacia o dificultad de adherencia',1],['Ambas condiciones',2]]},
+      {label:'Nutrición',opts:[['Sin pérdida de peso',0],['Pérdida de peso reciente',1]]},
+      {label:'Estado de ánimo',opts:[['Sin tristeza persistente',0],['Tristeza persistente',1]]},
+      {label:'Continencia',opts:[['Continente',0],['Incontinencia',1]]},
+      {label:'Rendimiento funcional (levantarse y caminar)',opts:[['0-10 s',0],['11-20 s',1],['Más de 20 s',2]]}
+    ],
+    interpret:(s)=>{ if(s<=5)return ['Sin fragilidad','good']; if(s<=7)return ['Vulnerabilidad aparente','mid']; if(s<=9)return ['Fragilidad leve','mid']; if(s<=11)return ['Fragilidad moderada','risk']; return ['Fragilidad severa','risk']; }, max:17
+  },
+  { id:'cfs', name:'Clinical Frailty Scale (CFS)', sub:'Clasificación clínica global de fragilidad · 1-9 puntos',
+    items:[{label:'Categoría clínica global',opts:[['1 - Muy en forma',1],['2 - En forma',2],['3 - Se maneja bien',3],['4 - Vulnerable',4],['5 - Fragilidad leve',5],['6 - Fragilidad moderada',6],['7 - Fragilidad severa',7],['8 - Fragilidad muy severa',8],['9 - Enfermedad terminal',9]]}],
+    interpret:(s)=>{ if(s<=3)return ['Sin fragilidad','good']; if(s===4)return ['Vulnerable','mid']; if(s<=5)return ['Fragilidad leve','mid']; if(s<=6)return ['Fragilidad moderada','risk']; return ['Fragilidad severa o muy severa','risk']; }, max:9
+  },
+  { id:'sarcf', name:'SARC-F', sub:'Tamizaje de riesgo de sarcopenia · fuerza, marcha, levantarse, escaleras y caídas · máx. 10 puntos',
+    items:[
+      {label:'Fuerza para levantar/cargar aproximadamente 4.5 kg',opts:[['Sin dificultad',0],['Alguna dificultad',1],['Mucha dificultad o incapaz',2]]},
+      {label:'Ayuda para caminar a través de una habitación',opts:[['Ninguna',0],['Alguna ayuda',1],['Mucha ayuda o incapaz',2]]},
+      {label:'Levantarse de una silla o cama',opts:[['Sin dificultad',0],['Alguna dificultad',1],['Mucha dificultad o incapaz',2]]},
+      {label:'Subir un tramo de 10 escalones',opts:[['Sin dificultad',0],['Alguna dificultad',1],['Mucha dificultad o incapaz',2]]},
+      {label:'Caídas durante el último año',opts:[['Ninguna',0],['1 a 3 caídas',1],['4 o más caídas',2]]}
+    ],
+    interpret:(s)=>{ if(s>=4)return ['Riesgo de sarcopenia','risk']; return ['Sin riesgo elevado de sarcopenia','good']; }, max:10
+  },
 ];
 
 const SCALE_META = {
@@ -1737,6 +1876,11 @@ const SCALE_META = {
   tinetti:{area:'Marcha', evalua:'Marcha y equilibrio'},
   sppb:{area:'Rendimiento físico', evalua:'Función de miembros inferiores'},
   chairstand:{area:'Fuerza', evalua:'Fuerza funcional de MMII'},
+  rankin:{area:'Discapacidad', evalua:'Grado global de discapacidad'},
+  frail:{area:'Fragilidad', evalua:'Tamizaje de fragilidad'},
+  edmonton:{area:'Fragilidad', evalua:'Fragilidad multidimensional'},
+  cfs:{area:'Fragilidad', evalua:'Grado clínico de fragilidad'},
+  sarcf:{area:'Sarcopenia', evalua:'Riesgo de sarcopenia'},
 };
 let escalaActual = null;
 
@@ -1883,20 +2027,35 @@ function calcMasaMuscular(){
 /* ============================================================
    4. METABOLISMO BASAL
    ============================================================ */
-function calcMetabolismo(){
-  if(!requierePaciente()) return;
+function calcTMB(){
+  if(!requierePaciente()) return null;
   const p = state.paciente;
-  const factor = parseFloat(document.getElementById('m_factor').value);
-  let bmr;
-  if(p.sexo==='M') bmr = 10*p.peso + 6.25*p.talla - 5*p.edad + 5;
-  else bmr = 10*p.peso + 6.25*p.talla - 5*p.edad - 161;
-  const get = bmr*factor;
-  state.metabolismo.bmr = bmr; state.metabolismo.get = get;
+  const bmr = p.sexo==='M'
+    ? (10*p.peso) + (6.25*p.talla) - (5*p.edad) + 5
+    : (10*p.peso) + (6.25*p.talla) - (5*p.edad) - 161;
+  state.metabolismo.bmr = bmr;
   markDone('metabolismo');
-  document.getElementById('m_result').innerHTML = `<div class="result good">
+  document.getElementById('m_result_tmb').innerHTML = `<div class="result good">
     <span class="big">TMB: ${bmr.toFixed(0)} kcal/día</span>
-    <span class="big" style="margin-top:6px;">GET: ${get.toFixed(0)} kcal/día</span>
-    <span class="tag">GET = TMB × Factor de actividad</span></div>`;
+    <span class="tag">Mifflin-St Jeor · ${p.sexo==='M'?'fórmula masculina':'fórmula femenina'}</span></div>`;
+  return bmr;
+}
+function calcGET(){
+  if(!requierePaciente()) return;
+  const bmr = state.metabolismo.bmr || calcTMB();
+  if(!bmr) return;
+  const factor = parseFloat(document.getElementById('m_factor').value);
+  const get = bmr * factor;
+  state.metabolismo.get = get;
+  state.metabolismo.factorActividad = factor;
+  markDone('metabolismo');
+  document.getElementById('m_result_get').innerHTML = `<div class="result good">
+    <span class="big">GET: ${get.toFixed(0)} kcal/día</span>
+    <span class="tag">GET = TMB × ${factor}</span></div>`;
+}
+function calcMetabolismo(){
+  calcTMB();
+  calcGET();
 }
 
 /* ============================================================
@@ -1919,6 +2078,71 @@ function calcHidratacion(){
 /* ============================================================
    6. METS Y BALANCE
    ============================================================ */
+
+const COMPENDIO_METS = [
+  ['Dormir',0.95,'Inactividad'],['Reposo en cama despierto',1.0,'Inactividad'],['Sentado leyendo',1.3,'Inactividad'],
+  ['Sentado conversando',1.3,'Inactividad'],['Trabajo de oficina sentado',1.5,'Ocupación'],['De pie tranquilo',1.8,'Inactividad'],
+  ['Aseo personal de pie',2.0,'Autocuidado'],['Ducharse',2.0,'Autocuidado'],['Vestirse',2.0,'Autocuidado'],
+  ['Cocinar y preparar alimentos',2.0,'Hogar'],['Lavar platos de pie',2.0,'Hogar'],['Planchar',1.8,'Hogar'],
+  ['Limpieza ligera del hogar',2.5,'Hogar'],['Barrer',3.3,'Hogar'],['Trapear',3.5,'Hogar'],['Aspirar',3.3,'Hogar'],
+  ['Tender la cama',3.3,'Hogar'],['Lavar ventanas',3.2,'Hogar'],['Cargar compras ligeras',3.5,'Hogar'],
+  ['Jardinería ligera',3.5,'Jardín'],['Regar plantas',2.5,'Jardín'],['Cortar césped caminando',5.5,'Jardín'],
+  ['Caminar dentro del hogar',2.0,'Marcha'],['Caminar muy lento, menos de 3 km/h',2.0,'Marcha'],
+  ['Caminar lento, 3.2 km/h',2.8,'Marcha'],['Caminar moderado, 4 km/h',3.0,'Marcha'],
+  ['Caminar 4.8 km/h',3.5,'Marcha'],['Caminar rápido, 5.6 km/h',4.3,'Marcha'],['Caminar 6.4 km/h',5.0,'Marcha'],
+  ['Caminar cuesta arriba',6.0,'Marcha'],['Caminar con andador',2.5,'Marcha'],['Caminar con muletas',4.0,'Marcha'],
+  ['Subir escaleras lentamente',4.0,'Marcha'],['Subir escaleras ritmo habitual',8.0,'Marcha'],
+  ['Bajar escaleras',3.5,'Marcha'],['Marcha nórdica moderada',4.8,'Marcha'],
+  ['Ejercicio terapéutico sentado',2.0,'Rehabilitación'],['Ejercicio terapéutico suave',2.5,'Rehabilitación'],
+  ['Ejercicio de equilibrio',2.5,'Rehabilitación'],['Calistenia ligera',2.8,'Ejercicio'],
+  ['Calistenia moderada',3.8,'Ejercicio'],['Fortalecimiento con bandas elásticas',3.5,'Ejercicio'],
+  ['Entrenamiento de fuerza ligero',3.5,'Ejercicio'],['Entrenamiento de fuerza moderado',5.0,'Ejercicio'],
+  ['Yoga suave',2.3,'Ejercicio'],['Tai chi',3.0,'Ejercicio'],['Pilates principiante',3.0,'Ejercicio'],
+  ['Gimnasia geriátrica',3.5,'Ejercicio'],['Estiramientos',2.3,'Ejercicio'],['Aeróbicos acuáticos',5.5,'Agua'],
+  ['Caminar en piscina',4.0,'Agua'],['Natación suave',4.8,'Agua'],['Natación moderada',6.0,'Agua'],
+  ['Bicicleta estática muy ligera',3.0,'Bicicleta'],['Bicicleta estática ligera',3.5,'Bicicleta'],
+  ['Bicicleta estática moderada',5.5,'Bicicleta'],['Bicicleta recreativa lenta',4.0,'Bicicleta'],
+  ['Bailes de salón lentos',3.0,'Baile'],['Baile social moderado',4.5,'Baile'],['Danza aeróbica suave',5.0,'Baile'],
+  ['Golf con carrito',3.5,'Deporte'],['Golf caminando',4.8,'Deporte'],['Bolos',3.0,'Deporte'],
+  ['Tenis de mesa',4.0,'Deporte'],['Bádminton recreativo',4.5,'Deporte'],['Tenis dobles',5.0,'Deporte'],
+  ['Pesca sentado',2.5,'Recreación'],['Tocar piano',2.3,'Música'],['Tocar instrumento de pie',3.0,'Música'],
+  ['Cuidado de otra persona',2.5,'Hogar'],['Compras caminando',2.3,'Transporte'],['Conducir automóvil',2.5,'Transporte'],
+  ['Viajar sentado en autobús',1.3,'Transporte'],['Trabajo de pie ligero',2.3,'Ocupación'],
+  ['Trabajo de almacén ligero',3.0,'Ocupación'],['Trabajo manual moderado',4.5,'Ocupación'],
+  ['Voluntariado de pie y caminando',3.0,'Voluntariado'],['Actividades religiosas de pie',2.0,'Religión']
+].map((a,i)=>({id:i+1,nombre:a[0],met:a[1],categoria:a[2]}));
+
+function buscarActividadMET(){
+  const input=document.getElementById('mets_busqueda');
+  const lista=document.getElementById('mets_autocomplete');
+  if(!input||!lista) return;
+  const q=normalizarTextoClinico(input.value);
+  const resultados=COMPENDIO_METS.filter(a=>!q || normalizarTextoClinico(`${a.nombre} ${a.categoria}`).includes(q)).slice(0,12);
+  lista.innerHTML=resultados.length
+    ? resultados.map(a=>`<div class="autocomplete-item" onclick="seleccionarActividadMET(${a.id})"><strong>${a.nombre}</strong><br><span style="font-size:11px;color:var(--ink-soft);">${a.categoria} · ${a.met} METs</span></div>`).join('')
+    : `<div class="autocomplete-item">No se encontraron actividades.</div>`;
+  lista.style.display='block';
+}
+function seleccionarActividadMET(id){
+  const actividad=COMPENDIO_METS.find(a=>a.id===id);
+  if(!actividad) return;
+  document.getElementById('mets_busqueda').value=actividad.nombre;
+  document.getElementById('mets_actividad').value=actividad.met;
+  document.getElementById('mets_seleccion').textContent=`${actividad.categoria} · ${actividad.met} METs`;
+  document.getElementById('mets_autocomplete').style.display='none';
+  state.mets.actividad=actividad.nombre;
+  state.mets.categoria=actividad.categoria;
+  state.mets.valor=actividad.met;
+  if(state.paciente) calcMETs();
+}
+document.addEventListener('click',ev=>{
+  const wrap=ev.target.closest&&ev.target.closest('.autocomplete-wrap');
+  if(!wrap){
+    const lista=document.getElementById('mets_autocomplete');
+    if(lista) lista.style.display='none';
+  }
+});
+
 function calcMETs(){
   if(!requierePaciente()) return;
   const p = state.paciente;
@@ -1929,9 +2153,9 @@ function calcMETs(){
   if(mets<4){cap='Baja intensidad — apropiada para inicio de programa o paciente frágil';cls='mid';}
   else if(mets<=6){cap='Intensidad moderada — adecuada para acondicionamiento geriátrico';cls='good';}
   else {cap='Intensidad vigorosa — verificar capacidad cardiovascular previa';cls='risk';}
-  state.mets.valor=mets; state.mets.kcal=kcal;
+  state.mets.valor=mets; state.mets.kcal=kcal; state.mets.minutos=min; state.mets.actividad=state.mets.actividad||document.getElementById('mets_busqueda')?.value||'Actividad seleccionada';
   markDone('mets');
-  document.getElementById('mets_result').innerHTML = `<div class="result ${cls}"><span class="big">${kcal.toFixed(0)} kcal en la sesión</span><span class="tag">${mets} METs — ${cap}</span></div>`;
+  document.getElementById('mets_result').innerHTML = `<div class="result ${cls}"><span class="big">${kcal.toFixed(0)} kcal en la sesión</span><span class="tag">${state.mets.actividad} · ${mets} METs — ${cap}</span></div>`;
 }
 function calcBalance(){
   if(!requierePaciente()) return;
@@ -1995,34 +2219,155 @@ function calcFragilidad(){
 /* ============================================================
    ANEXOS (fotos / consentimiento)
    ============================================================ */
-function handleAnexoUpload(tipo, input){
-  const file = input.files && input.files[0];
-  const previewId = tipo==='fotoValoracion' ? 'a_foto_preview' : 'a_consent_preview';
-  const preview = document.getElementById(previewId);
-  if(!file){
-    state.anexos[tipo] = null;
-    preview.innerHTML = '';
-    generarInforme();
-    if(state.paciente) guardarPacienteCompleto();
+function escapeHtml(valor){
+  return String(valor==null?'':valor)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
+function escapeAttr(valor){
+  return escapeHtml(valor).replace(/`/g,'&#096;');
+}
+
+/* ============================================================
+   REGISTRO FOTOGRÁFICO DEL PACIENTE
+   Módulo manual, sin análisis automatizado de imágenes.
+   ============================================================ */
+function normalizarAnexosFotograficos(anexos){
+  const origen = anexos || {};
+  let fotos = Array.isArray(origen.registroFotografico)
+    ? origen.registroFotografico
+    : [];
+
+  // Compatibilidad con expedientes creados antes del registro múltiple.
+  if(!fotos.length && origen.fotoValoracion && origen.fotoValoracion.dataUrl){
+    fotos = [{
+      id:'foto_legacy',
+      titulo:'Fotografía clínica',
+      dataUrl:origen.fotoValoracion.dataUrl,
+      nombre:origen.fotoValoracion.nombre||'fotografia-clinica',
+      tipo:origen.fotoValoracion.tipo||'image/jpeg',
+      descripcion:''
+    }];
+  }
+  return {
+    registroFotografico:fotos.map((foto,index)=>({
+      id:foto.id||`foto_${Date.now()}_${index}`,
+      titulo:foto.titulo||`Fotografía clínica ${index+1}`,
+      dataUrl:foto.dataUrl||null,
+      nombre:foto.nombre||'',
+      tipo:foto.tipo||'image/jpeg',
+      descripcion:foto.descripcion||''
+    }))
+  };
+}
+function obtenerRegistroFotografico(){
+  state.anexos = normalizarAnexosFotograficos(state.anexos);
+  return state.anexos.registroFotografico;
+}
+function agregarRegistroFotografico(datos){
+  const fotos = obtenerRegistroFotografico();
+  const numero = fotos.length + 1;
+  fotos.push({
+    id:`foto_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
+    titulo:(datos&&datos.titulo)||`Vista clínica ${numero}`,
+    dataUrl:(datos&&datos.dataUrl)||null,
+    nombre:(datos&&datos.nombre)||'',
+    tipo:(datos&&datos.tipo)||'image/jpeg',
+    descripcion:(datos&&datos.descripcion)||''
+  });
+  renderRegistroFotografico();
+}
+function eliminarRegistroFotografico(id){
+  const fotos = obtenerRegistroFotografico();
+  const index = fotos.findIndex(f=>f.id===id);
+  if(index<0) return;
+  if(!confirm('¿Eliminar esta fotografía clínica y su descripción?')) return;
+  fotos.splice(index,1);
+  renderRegistroFotografico();
+  generarInforme();
+  if(state.paciente) guardarPacienteCompleto();
+}
+function actualizarCampoRegistroFotografico(id,campo,valor){
+  const foto = obtenerRegistroFotografico().find(f=>f.id===id);
+  if(!foto) return;
+  foto[campo]=valor;
+}
+function guardarCampoRegistroFotografico(id,campo,valor){
+  actualizarCampoRegistroFotografico(id,campo,valor);
+  generarInforme();
+  if(state.paciente) guardarPacienteCompleto();
+}
+function seleccionarFotografiaClinica(id,input){
+  const file=input.files&&input.files[0];
+  if(!file) return;
+  if(!file.type.startsWith('image/')){
+    alert('Seleccione un archivo de imagen válido.');
+    input.value='';
     return;
   }
-  const reader = new FileReader();
-  reader.onload = function(e){
-    state.anexos[tipo] = { dataUrl: e.target.result, nombre: file.name, tipo: file.type };
-    if(file.type.startsWith('image/')){
-      preview.innerHTML = `<img src="${e.target.result}" style="max-width:100%;max-height:140px;border-radius:8px;border:1px solid var(--line);">`;
-    } else {
-      preview.innerHTML = `<div class="pill ok">📎 ${file.name}</div>`;
-    }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const foto=obtenerRegistroFotografico().find(f=>f.id===id);
+    if(!foto) return;
+    foto.dataUrl=e.target.result;
+    foto.nombre=file.name||'fotografia-clinica';
+    foto.tipo=file.type||'image/jpeg';
+    renderRegistroFotografico();
     generarInforme();
-    // Este campo vive en "Informe Final" (módulo 9), fuera de NAV_ITEMS, por lo que
-    // ningún markDone() posterior vuelve a persistir el expediente. Se guarda aquí
-    // explícitamente para que la fotografía quede en el mismo expediente ya persistido
-    // (state.anexos), igual que el resto de los datos del paciente.
     if(state.paciente) guardarPacienteCompleto();
   };
+  reader.onerror=()=>alert('No fue posible leer la fotografía seleccionada.');
   reader.readAsDataURL(file);
 }
+function renderRegistroFotografico(){
+  const container=document.getElementById('registroFotograficoContainer');
+  if(!container) return;
+  const fotos=obtenerRegistroFotografico();
+  if(!fotos.length){
+    container.innerHTML=`<div class="foto-registro-placeholder" style="margin-bottom:16px;">No hay fotografías registradas. Use “Agregar fotografía clínica” para comenzar.</div>`;
+    return;
+  }
+  container.innerHTML=fotos.map((foto,index)=>`
+    <div class="foto-registro-item">
+      <div class="foto-registro-head">
+        <h4>Fotografía ${index+1}</h4>
+        <button class="ghost" type="button" onclick="eliminarRegistroFotografico('${foto.id}')">Eliminar</button>
+      </div>
+      <div class="field">
+        <label>Vista o identificación de la fotografía</label>
+        <input value="${escapeAttr(foto.titulo)}" placeholder="Ej. Vista anterior, posterior o lateral derecha"
+          oninput="actualizarCampoRegistroFotografico('${foto.id}','titulo',this.value)"
+          onchange="guardarCampoRegistroFotografico('${foto.id}','titulo',this.value)">
+      </div>
+      <div class="foto-registro-actions">
+        <div class="field" style="flex:1;min-width:230px;margin-bottom:0;">
+          <label>${foto.dataUrl?'Reemplazar desde el dispositivo':'Subir desde el dispositivo'}</label>
+          <input type="file" accept="image/*" onchange="seleccionarFotografiaClinica('${foto.id}',this)">
+        </div>
+        <div class="field" style="flex:1;min-width:230px;margin-bottom:0;">
+          <label>${foto.dataUrl?'Reemplazar usando la cámara':'Tomar fotografía con la cámara'}</label>
+          <input type="file" accept="image/*" capture="environment" onchange="seleccionarFotografiaClinica('${foto.id}',this)">
+          <div class="field-hint">Disponible cuando el navegador y el dispositivo permiten acceso a la cámara.</div>
+        </div>
+      </div>
+      <div class="foto-registro-preview">
+        ${foto.dataUrl
+          ? `<img src="${foto.dataUrl}" alt="${escapeAttr(foto.titulo||'Fotografía clínica')}">`
+          : `<div class="foto-registro-placeholder">La vista previa aparecerá aquí inmediatamente después de seleccionar una imagen.</div>`}
+      </div>
+      <div class="field">
+        <label>Descripción clínica / Hallazgos posturales</label>
+        <textarea class="foto-descripcion" placeholder="Registre manualmente alteraciones posturales, desviaciones, asimetrías, marcha, alineación corporal, compensaciones y observaciones relevantes."
+          oninput="actualizarCampoRegistroFotografico('${foto.id}','descripcion',this.value)"
+          onchange="guardarCampoRegistroFotografico('${foto.id}','descripcion',this.value)">${escapeHtml(foto.descripcion)}</textarea>
+      </div>
+    </div>
+  `).join('');
+}
+
 
 /* ============================================================
    9. INFORME FINAL
@@ -2128,6 +2473,32 @@ function buildInformeHTML(rec){
     </div>
 
     <div class="card">
+      <h3>Escalas sugeridas según la patología</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${(function(){
+          const texto=normalizarTextoClinico(`${p.diagnostico_medico||''} ${p.diagnostico||''}`);
+          const arr=[];
+          REGLAS_ESCALAS_POR_PATOLOGIA.forEach(r=>{if(r.claves.some(k=>texto.includes(normalizarTextoClinico(k))))r.escalas.forEach(e=>{if(!arr.includes(e))arr.push(e);});});
+          return arr.length?arr.map(e=>`<span class="pill">${e}</span>`).join(''):'No se identificaron sugerencias automáticas para el diagnóstico registrado.';
+        })()}
+      </div>
+      <p class="cite">Las escalas se muestran como orientación y no se aplican automáticamente.</p>
+    </div>
+
+    <div class="card">
+      <h3>ALTERACIONES CLÍNICAS</h3>
+      <table class="report">
+        <tr><th>Alteraciones posturales</th><td>${p.alteraciones_posturales||'—'}</td></tr>
+        <tr><th>Edema</th><td>${p.edema||'—'}</td></tr>
+        <tr><th>Deformidades</th><td>${p.deformidades||'—'}</td></tr>
+        <tr><th>Ayudas técnicas</th><td>${p.ayudas_tecnicas||'—'}</td></tr>
+        <tr><th>Alteraciones de la marcha</th><td>${p.alteraciones_marcha||'—'}</td></tr>
+        <tr><th>Limitaciones funcionales</th><td>${p.limitaciones_funcionales||'—'}</td></tr>
+        <tr><th>Observaciones clínicas</th><td>${p.observaciones_clinicas||'—'}</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
       <h3>Resultados de escalas geriátricas</h3>
       <table class="report">${escalasRows}</table>
     </div>
@@ -2152,13 +2523,23 @@ function buildInformeHTML(rec){
       <table class="report">
         <tr><th>Fuerza de agarre</th><td>${d.fuerza?d.fuerza+' kg — '+d.txt:'No calculado'}</td></tr>
         <tr><th>Clasificación de fragilidad</th><td>${f.txt?f.total+'/5 criterios — '+f.txt:'No calculado'}</td></tr>
-        <tr><th>METs de la actividad prescrita</th><td>${met.valor?met.valor+' METs ('+met.kcal.toFixed(0)+' kcal/sesión)':'No calculado'}</td></tr>
+        <tr><th>METs de la actividad prescrita</th><td>${met.valor?(met.actividad||'Actividad seleccionada')+' · '+met.valor+' METs ('+met.kcal.toFixed(0)+' kcal/sesión)':'No calculado'}</td></tr>
       </table>
     </div>
 
     <div class="card">
       <h3>Banderas clínicas identificadas</h3>
       ${flags.length? `<div style="display:flex;gap:8px;flex-wrap:wrap;">${flags.map(fl=>`<span class="pill warn">${fl}</span>`).join('')}</div>` : `<div class="pill ok">Sin banderas de alarma relevantes</div>`}
+    </div>
+
+    <div class="card">
+      <h3>REGISTRO FOTOGRÁFICO</h3>
+      ${buildRegistroFotograficoHTML(rec)}
+    </div>
+
+    <div class="card">
+      <h3>ANÁLISIS CLÍNICO FISIOTERAPÉUTICO</h3>
+      <div style="line-height:1.7;font-size:14px;">${generarAnalisisClinico(rec)}</div>
     </div>
 
     <div class="card">
@@ -2171,12 +2552,53 @@ function buildInformeHTML(rec){
       <div style="white-space:pre-line;line-height:1.7;font-size:14px;">${conclusiones}</div>
     </div>
 
-    ${buildAnexosHTML(rec)}
   `;
 }
 
-function generarConclusiones(){
-  return buildConclusionesHTML(recordDesdeState());
+function generarAnalisisClinico(rec){
+  const p=rec.paciente||{}, n=rec.nutricion||{}, d=rec.dinamometria||{}, f=rec.fragilidad||{},
+        met=rec.mets||{}, escalas=rec.escalas||{}, a=rec.anexos||{};
+  const get=id=>escalas[id];
+  const partes=[];
+  const sexo=p.sexo==='F'?'mujer':p.sexo==='M'?'hombre':'persona';
+  partes.push(`Paciente ${sexo} de ${p.edad||'edad no registrada'} años${p.diagnostico_medico?`, con diagnóstico médico de ${p.diagnostico_medico}`:''}${p.diagnostico?` y diagnóstico fisioterapéutico de ${p.diagnostico}`:''}.`);
+
+  const funcional=[];
+  if(get('barthel')) funcional.push(`${get('barthel').txt.toLowerCase()} en actividades básicas según Barthel (${get('barthel').total}/100)`);
+  if(get('lawton')) funcional.push(`${get('lawton').txt.toLowerCase()} en actividades instrumentales según Lawton-Brody (${get('lawton').total}/8)`);
+  if(get('sppb')) funcional.push(`${get('sppb').txt.toLowerCase()} en rendimiento físico según SPPB (${get('sppb').total}/12)`);
+  if(funcional.length) partes.push(`El estado funcional evidencia ${funcional.join(', ')}.`);
+
+  const caidas=[];
+  if(get('berg')) caidas.push(`Berg ${get('berg').total}/56: ${get('berg').txt.toLowerCase()}`);
+  if(get('tinetti')) caidas.push(`Tinetti ${get('tinetti').total}: ${get('tinetti').txt.toLowerCase()}`);
+  if(get('tug')) caidas.push(`TUG ${get('tug').total} segundos: ${get('tug').txt.toLowerCase()}`);
+  if(caidas.length) partes.push(`En equilibrio, marcha y riesgo de caídas se registran ${caidas.join('; ')}.`);
+
+  if(f.txt) partes.push(`La clasificación de fragilidad corresponde a ${f.txt.toLowerCase()} (${f.total}/5 criterios de Fried).`);
+  if(d.fuerza!=null) partes.push(`La fuerza de agarre fue de ${d.fuerza} kg, interpretada como ${d.txt.toLowerCase()}.`);
+  if(n.mnaTxt) partes.push(`El tamizaje nutricional indica ${n.mnaTxt.toLowerCase()}${n.imc?`, con IMC de ${n.imc.toFixed(1)} kg/m² (${n.imcCat})`:''}.`);
+  if(met.valor) partes.push(`La actividad seleccionada, ${met.actividad||'actividad prescrita'}, equivale a ${met.valor} METs y representa un gasto estimado de ${met.kcal.toFixed(0)} kcal durante ${met.minutos||'la'} sesión.`);
+
+  const alteraciones=[
+    p.alteraciones_posturales&&`alteraciones posturales: ${p.alteraciones_posturales}`,
+    p.edema&&`edema: ${p.edema}`,
+    p.deformidades&&`deformidades: ${p.deformidades}`,
+    p.ayudas_tecnicas&&`ayudas técnicas: ${p.ayudas_tecnicas}`,
+    p.alteraciones_marcha&&`alteraciones de la marcha: ${p.alteraciones_marcha}`,
+    p.limitaciones_funcionales&&`limitaciones funcionales: ${p.limitaciones_funcionales}`,
+    p.observaciones_clinicas&&`observaciones clínicas: ${p.observaciones_clinicas}`
+  ].filter(Boolean);
+  if(alteraciones.length) partes.push(`Entre los hallazgos clínicos se documentan ${alteraciones.join('; ')}.`);
+
+  const descripcionesFotograficas=(a.registroFotografico||[]).map(f=>f.descripcion&&f.descripcion.trim()).filter(Boolean);
+  if(descripcionesFotograficas.length){
+    partes.push(`El registro fotográfico documenta los siguientes hallazgos consignados manualmente por el fisioterapeuta: ${descripcionesFotograficas.join(' ')}`);
+  }
+
+  const plan=evaluarPlanIntervencion(rec);
+  partes.push(`Con base en la integración de estos resultados, se recomienda priorizar ${plan.objetivos.slice(0,3).map(x=>x.replace(/\.$/,'').toLowerCase()).join(', ')}, mediante ${plan.intervenciones.slice(0,3).map(x=>x.replace(/\.$/,'').toLowerCase()).join(', ')}. La frecuencia orientativa es ${plan.frecuencia.toLowerCase()} y la duración estimada es ${plan.duracion.toLowerCase()}`);
+  return partes.join(' ');
 }
 function buildConclusionesHTML(rec){
   const p = rec.paciente||{}, n = rec.nutricion||{}, d = rec.dinamometria||{}, f = rec.fragilidad||{}, bal = rec.balance||{};
@@ -2200,7 +2622,7 @@ function buildConclusionesHTML(rec){
    ------------------------------------------------------------ */
 function evaluarPlanIntervencion(rec){
   const p = rec.paciente||{}, n = rec.nutricion||{}, d = rec.dinamometria||{}, f = rec.fragilidad||{},
-        bal = rec.balance||{}, escalas = rec.escalas||{};
+        bal = rec.balance||{}, escalas = rec.escalas||{}, h = rec.hidratacion||{}, met = rec.mets||{};
   const get = id => escalas[id];
   const tug = get('tug'), berg = get('berg'), tinetti = get('tinetti'), sppb = get('sppb'),
         chairstand = get('chairstand'), barthel = get('barthel'), lawton = get('lawton'), gds = get('gds');
@@ -2215,7 +2637,12 @@ function evaluarPlanIntervencion(rec){
   const prefragil = f.txt==='Prefrágil';
   const riesgoNutricional = n.mnaTxt && n.mnaTxt!=='Estado nutricional normal';
   const animoBajo = gds && gds.total>=5;
-  const hayDatos = Object.keys(escalas).length>0 || d.fuerza!=null || f.txt!=null;
+  // --- Capacidad aeróbica/metabólica (METs) y estado de hidratación, para adaptar tipo e intensidad del ejercicio ---
+  const capacidadBaja = met.valor!=null && met.valor<3;
+  const capacidadModerada = met.valor!=null && met.valor>=3 && met.valor<=5;
+  const capacidadBuena = met.valor!=null && met.valor>5;
+  const deficitEnergetico = bal.txt && bal.txt.includes('Déficit');
+  const hayDatos = Object.keys(escalas).length>0 || d.fuerza!=null || f.txt!=null || met.valor!=null || h.litros!=null;
 
   const objetivos = [], intervenciones = [], recomendaciones = [];
 
@@ -2249,6 +2676,20 @@ function evaluarPlanIntervencion(rec){
   }
   if(animoBajo){
     recomendaciones.push('Considerar interconsulta con psicología/psiquiatría por sintomatología depresiva identificada en el tamizaje.');
+  }
+  if(capacidadBaja){
+    objetivos.push('Mejorar progresivamente la tolerancia al esfuerzo y la capacidad aeróbica funcional.');
+    intervenciones.push('Entrenamiento aeróbico de baja intensidad (< 3 METs), con monitoreo estrecho de fatiga, frecuencia cardíaca y saturación.');
+  } else if(capacidadModerada){
+    intervenciones.push('Entrenamiento aeróbico de intensidad moderada (3-5 METs), tipo marcha o bicicleta estática, con progresión gradual.');
+  } else if(capacidadBuena){
+    intervenciones.push('Entrenamiento aeróbico/funcional de intensidad moderada-alta (> 5 METs), priorizando actividades funcionales de mayor demanda energética.');
+  }
+  if(deficitEnergetico){
+    recomendaciones.push('Ajustar la intensidad y duración del ejercicio al balance energético actual, evitando sobreentrenamiento mientras persista el déficit calórico.');
+  }
+  if(h.litros!=null){
+    recomendaciones.push(`Asegurar una ingesta hídrica aproximada de ${h.litros.toFixed(2)} L/día, reforzada antes, durante y después de las sesiones de ejercicio para prevenir deshidratación.`);
   }
   if(!hayDatos){
     objetivos.push('Mejorar el equilibrio funcional.');
@@ -2317,22 +2758,32 @@ function buildPlanIntervencionHTML(rec){
 }
 
 function generarAnexosHTML(){
-  return buildAnexosHTML(recordDesdeState());
+  return buildRegistroFotograficoHTML(recordDesdeState());
+}
+function buildRegistroFotograficoHTML(rec){
+  const anexos=normalizarAnexosFotograficos(rec&&rec.anexos);
+  const fotos=anexos.registroFotografico;
+  if(!fotos.length){
+    return `<p style="font-size:13px;color:var(--ink-soft);margin:0;">No se han registrado fotografías clínicas.</p>`;
+  }
+  return fotos.map((foto,index)=>`
+    <div class="foto-registro-report">
+      <h4>${escapeHtml(foto.titulo||`Fotografía clínica ${index+1}`)}</h4>
+      ${foto.dataUrl
+        ? `<div class="anexo-img-wrap"><img src="${foto.dataUrl}" class="anexo-img" alt="${escapeAttr(foto.titulo||'Fotografía clínica')}"></div>`
+        : `<p style="font-size:13px;color:var(--ink-soft);">Imagen no adjuntada.</p>`}
+      <div class="descripcion-clinica"><strong>Descripción clínica / Hallazgos posturales</strong><br>${foto.descripcion?escapeHtml(foto.descripcion):'<span style="color:var(--ink-soft);">Sin descripción clínica registrada.</span>'}</div>
+    </div>
+  `).join('');
 }
 function buildAnexosHTML(rec){
-  const a = rec.anexos || {};
-  const item = a.fotoValoracion;
-  const contenido = !item
-    ? `<p style="font-size:13px;color:var(--ink-soft);">Fotografía de la valoración: no adjuntada.</p>`
-    : `<div class="anexo-img-wrap"><img src="${item.dataUrl}" class="anexo-img"></div>`;
   return `
     <div class="card anexo-card">
-      <h3>Anexos</h3>
-      ${contenido}
+      <h3>REGISTRO FOTOGRÁFICO</h3>
+      ${buildRegistroFotograficoHTML(rec)}
     </div>
   `;
 }
-
 // Vista de solo lectura del expediente clínico completo de un paciente guardado
 function renderExpediente(rec){
   const p = rec.paciente || {};
@@ -2559,6 +3010,17 @@ async function generarPDFClinico(){
     ['Medicación actual', p.medicacion||'—'],
   ]);
 
+  y = sectionTitle(y, 'Alteraciones clínicas');
+  y = kvTable(y, [
+    ['Alteraciones posturales', p.alteraciones_posturales||'—'],
+    ['Edema', p.edema||'—'],
+    ['Deformidades', p.deformidades||'—'],
+    ['Ayudas técnicas', p.ayudas_tecnicas||'—'],
+    ['Alteraciones de la marcha', p.alteraciones_marcha||'—'],
+    ['Limitaciones funcionales', p.limitaciones_funcionales||'—'],
+    ['Observaciones clínicas', p.observaciones_clinicas||'—'],
+  ]);
+
   // 2. Escalas geriátricas
   y = sectionTitle(y, 'Resultados de escalas geriátricas');
   const escalaRows = SCALES.map(sc=>{
@@ -2606,7 +3068,7 @@ async function generarPDFClinico(){
   y = kvTable(y, [
     ['Fuerza de agarre', d.fuerza? d.fuerza+' kg — '+d.txt : 'No calculado'],
     ['Clasificación de fragilidad', f.txt? f.total+'/5 criterios — '+f.txt : 'No calculado'],
-    ['METs de la actividad prescrita', met.valor? met.valor+' METs ('+met.kcal.toFixed(0)+' kcal/sesión)' : 'No calculado'],
+    ['METs de la actividad prescrita', met.valor? (met.actividad||'Actividad seleccionada')+' · '+met.valor+' METs ('+met.kcal.toFixed(0)+' kcal/sesión)' : 'No calculado'],
   ]);
 
   // 5. Banderas clínicas
@@ -2633,8 +3095,24 @@ async function generarPDFClinico(){
   }
   y += 3;
 
-  // 6. Plan de Intervención Fisioterapéutica (generado dinámicamente a partir de escalas,
-  // dinamometría, fragilidad, estado nutricional y balance energético del paciente)
+  // Escalas sugeridas según patología
+  y = sectionTitle(y, 'Escalas sugeridas según la patología');
+  const textoDiag = normalizarTextoClinico(`${p.diagnostico_medico||''} ${p.diagnostico||''}`);
+  const sugeridasPdf = [];
+  REGLAS_ESCALAS_POR_PATOLOGIA.forEach(r=>{
+    if(r.claves.some(k=>textoDiag.includes(normalizarTextoClinico(k)))){
+      r.escalas.forEach(e=>{if(!sugeridasPdf.includes(e)) sugeridasPdf.push(e);});
+    }
+  });
+  y = planTextBlock(y, '', sugeridasPdf.length?sugeridasPdf.join(' · '):'No se identificaron sugerencias automáticas para el diagnóstico registrado.');
+
+  // 6. Análisis clínico fisioterapéutico construido mediante reglas
+  y = sectionTitle(y, 'Análisis Clínico Fisioterapéutico');
+  y = planTextBlock(y, '', generarAnalisisClinico(recordDesdeState()));
+
+  // 7. Plan de Intervención Fisioterapéutica (generado dinámicamente a partir de escalas,
+  // riesgos detectados, dinamometría, fragilidad, estado nutricional, balance energético,
+  // METs e hidratación del paciente)
   y = sectionTitle(y, 'Plan de Intervención Fisioterapéutica');
   const plan = evaluarPlanIntervencion(recordDesdeState());
   y = planBulletBlock(y, 'Objetivos fisioterapéuticos', plan.objetivos);
@@ -2654,25 +3132,57 @@ async function generarPDFClinico(){
     y += wrapped.length*5 + 3;
   });
 
-  // 8. Anexos
-  y = sectionTitle(y+2, 'Anexos');
-  const anexo = state.anexos && state.anexos.fotoValoracion;
+  // 8. Registro fotográfico del paciente
+  y = sectionTitle(y+2, 'REGISTRO FOTOGRÁFICO');
+  const fotosPdf = normalizarAnexosFotograficos(state.anexos).registroFotografico;
   doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...COLOR.inkSoft);
-  if(anexo && anexo.dataUrl){
-    const dims = await loadImageDims(anexo.dataUrl);
-    if(dims){
-      let imgW = CONTENT_W, imgH = imgW*(dims.h/dims.w);
-      const maxH = FOOT_TOP - HEAD_BOTTOM - 10;
-      if(imgH > maxH){ imgH = maxH; imgW = imgH*(dims.w/dims.h); }
-      y = checkBreak(y, imgH + 6);
-      const format = (anexo.tipo && anexo.tipo.includes('png')) ? 'PNG' : 'JPEG';
-      doc.addImage(anexo.dataUrl, format, MARGIN, y, imgW, imgH);
-      y += imgH + 6;
-    } else {
-      doc.text('No se pudo procesar la imagen adjunta.', MARGIN, y); y += 6;
-    }
+  if(!fotosPdf.length){
+    doc.text('No se han registrado fotografías clínicas.', MARGIN, y);
+    y += 6;
   } else {
-    doc.text('Fotografía de la valoración: no adjuntada.', MARGIN, y); y += 6;
+    for(let index=0; index<fotosPdf.length; index++){
+      const foto=fotosPdf[index];
+      const tituloFoto=foto.titulo||`Fotografía clínica ${index+1}`;
+      const descripcion=foto.descripcion&&foto.descripcion.trim()
+        ? foto.descripcion.trim()
+        : 'Sin descripción clínica registrada.';
+      const descLines=doc.splitTextToSize(descripcion, CONTENT_W);
+      let dims=foto.dataUrl ? await loadImageDims(foto.dataUrl) : null;
+      let imgW=0, imgH=0;
+      if(dims){
+        imgW=CONTENT_W;
+        imgH=imgW*(dims.h/dims.w);
+        const maxImgH=105;
+        if(imgH>maxImgH){ imgH=maxImgH; imgW=imgH*(dims.w/dims.h); }
+      }
+      const blockH=8+(dims?imgH+5:7)+7+(descLines.length*4.6)+8;
+      if(y+blockH>FOOT_TOP){
+        doc.addPage();
+        y=HEAD_BOTTOM;
+      }
+
+      doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(...COLOR.tealDeep);
+      doc.text(tituloFoto, MARGIN, y);
+      y+=6;
+
+      if(dims){
+        const x=MARGIN+(CONTENT_W-imgW)/2;
+        const format=(foto.tipo&&foto.tipo.includes('png'))?'PNG':'JPEG';
+        doc.addImage(foto.dataUrl, format, x, y, imgW, imgH);
+        y+=imgH+5;
+      }else{
+        doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(...COLOR.inkSoft);
+        doc.text('Imagen no adjuntada.', MARGIN, y);
+        y+=7;
+      }
+
+      doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(...COLOR.ink);
+      doc.text('Descripción clínica / Hallazgos posturales', MARGIN, y);
+      y+=5;
+      doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+      doc.text(descLines, MARGIN, y);
+      y+=descLines.length*4.6+8;
+    }
   }
 
   // Pie de página en todas las páginas
@@ -2695,6 +3205,7 @@ async function generarPDFClinico(){
    ============================================================ */
 renderNav();
 renderScales();
+renderRegistroFotografico();
 renderMNA();
 updateProgress();
 toggleCuidadorFields();
