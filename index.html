@@ -3018,16 +3018,65 @@ async function generarPDFClinico(){
     doc.setDrawColor(...COLOR.line); doc.setLineWidth(0.4);
     doc.line(MARGIN, 26, PAGE_W-MARGIN, 26);
   }
+  /* ------------------------------------------------------------
+     CONTROL AUTOMÁTICO DE SALTOS DE PÁGINA (funciones reutilizables)
+     ------------------------------------------------------------
+     Principio general aplicado en todo el documento: nunca se dibuja
+     un encabezado (de sección o de subsección) sin verificar antes
+     que, además del propio encabezado, cabe también una porción
+     mínima representativa de su contenido en la página actual. Si no
+     cabe, el salto de página ocurre ANTES del encabezado (nunca se
+     deja el título aislado al final de una hoja). Los bloques de
+     texto largos, además, fluyen entre páginas evitando: (a) dejar
+     una sola línea aislada al final de una página (huérfana), (b)
+     dejar una sola línea aislada al inicio de la página siguiente
+     (viuda), y (c) mover un bloque completo a la página siguiente
+     cuando una parte relevante sí cabría en la actual (lo que deja
+     espacios en blanco innecesarios).
+     ------------------------------------------------------------ */
+  // Primitiva base: si "needed" mm no caben desde "y" hasta el pie de página,
+  // salta de página completa (con encabezado nuevo) antes de dibujar nada.
   function checkBreak(y, needed){
     if(y+needed > FOOT_TOP){ doc.addPage(); drawHeader(); return HEAD_BOTTOM+4; }
     return y;
   }
-  function sectionTitle(y, text){
-    y = checkBreak(y, 12);
+  // Calcula el alto (mm) que ocupará un texto ya envuelto a un ancho dado,
+  // con un tamaño de fuente y alto de línea determinados. Se usa para saber
+  // de antemano cuánto contenido "acompaña" a un título/subtítulo antes de
+  // decidir si conviene saltar de página.
+  function estimateWrappedHeight(text, width, fontSize, lineH){
+    doc.setFont('helvetica','normal'); doc.setFontSize(fontSize);
+    const lines = doc.splitTextToSize(String(text==null?'':text), width);
+    return Math.max(lines.length,1) * lineH;
+  }
+  // Estima cuánto ocupará la primera fila de una kvTable (título en negrita +
+  // valor envuelto a la 2ª columna), para reservar ese espacio junto al título
+  // de sección y evitar que el título quede solo si la tabla salta de página.
+  function firstKvRowFollow(rows){
+    if(!rows || !rows.length) return 9;
+    const valueColWidth = CONTENT_W - 62 - 4.8; // ancho útil de la 2ª columna, menos padding
+    const h = estimateWrappedHeight(rows[0][1], valueColWidth, 9, 4.1);
+    return Math.max(h + 4.8, 9); // + padding vertical de la celda (cellPadding 2.4 x2)
+  }
+  const SECTION_TITLE_H = 7;
+  const SECTION_MIN_FOLLOW = 18; // reserva por defecto: "varias líneas" o una fila de tabla
+  // Dibuja un título de sección controlando huérfanas: nunca se imprime el
+  // título si, junto a él, no cabe también "minFollowHeight" mm del contenido
+  // que le pertenece. Si no cabe, se salta de página ANTES del título.
+  function sectionTitle(y, text, minFollowHeight){
+    const follow = minFollowHeight!=null ? minFollowHeight : SECTION_MIN_FOLLOW;
+    y = checkBreak(y, SECTION_TITLE_H + follow);
     doc.setFillColor(...COLOR.teal); doc.rect(MARGIN, y-3.6, 3, 5, 'F');
     doc.setFont('helvetica','bold'); doc.setFontSize(11.5); doc.setTextColor(...COLOR.ink);
     doc.text(text, MARGIN+6, y);
     return y+7;
+  }
+  // Título de sección + kvTable combinados: reserva automáticamente el alto
+  // estimado de la primera fila antes de imprimir el título, así el título y
+  // al menos su primera fila siempre quedan juntos en la misma página.
+  function sectionWithTable(y, title, rows){
+    y = sectionTitle(y, title, firstKvRowFollow(rows));
+    return kvTable(y, rows);
   }
   function kvTable(y, rows){
     doc.autoTable({
@@ -3039,10 +3088,50 @@ async function generarPDFClinico(){
     });
     return doc.lastAutoTable.finalY + 9;
   }
+  // Dibuja líneas ya envueltas (wrapped) fluyendo entre páginas cuando el
+  // bloque no cabe completo en la página actual — en vez de mover TODO el
+  // bloque a la siguiente página (lo que deja huecos en blanco), reparte el
+  // contenido y solo salta de página cuando realmente se queda sin espacio.
+  // Aplica control de viudas/huérfanas: nunca deja 1 sola línea aislada al
+  // final de una página ni 1 sola línea aislada al inicio de la siguiente
+  // (como mínimo se mantienen 2 líneas juntas).
+  function drawFlowingText(y, lines, lineHeight, x){
+    const posX = x!=null ? x : MARGIN;
+    let i = 0;
+    while(i < lines.length){
+      const restantes = lines.length - i;
+      let cabenAhora = Math.max(0, Math.floor((FOOT_TOP - y) / lineHeight));
+      if(cabenAhora >= restantes){
+        doc.text(lines.slice(i), posX, y);
+        y += restantes*lineHeight;
+        i = lines.length;
+        break;
+      }
+      // Control de huérfanas: no dejar 1 sola línea sola al final de la página actual.
+      if(cabenAhora === 1 && restantes > 1) cabenAhora = 0;
+      // Control de viudas: si al cortar quedaría 1 sola línea sola al inicio
+      // de la siguiente página, se retiene una línea más en la actual.
+      if(cabenAhora > 1 && (restantes - cabenAhora) === 1) cabenAhora -= 1;
+      if(cabenAhora > 0){
+        doc.text(lines.slice(i, i+cabenAhora), posX, y);
+        y += cabenAhora*lineHeight;
+        i += cabenAhora;
+      }
+      if(i < lines.length){ doc.addPage(); drawHeader(); y = HEAD_BOTTOM+4; }
+    }
+    return y;
+  }
   // Bloque de viñetas reutilizado por el Plan de Intervención Fisioterapéutica (objetivos,
-  // intervenciones, recomendaciones son listas variables según el paciente).
+  // intervenciones, recomendaciones son listas variables según el paciente). El subtítulo
+  // nunca queda huérfano: se reserva junto a él el alto de su primera viñeta.
   function planBulletBlock(y, titulo, items){
-    y = checkBreak(y, 6);
+    if(!items || !items.length) return y;
+    // El ajuste de línea de la primera viñeta se calcula con la fuente normal
+    // de 9.3 (la misma con la que se dibujan las viñetas más abajo), para que
+    // la estimación de espacio coincida con el renderizado real.
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.3);
+    const primerWrap = doc.splitTextToSize('•  '+items[0], CONTENT_W-2);
+    y = checkBreak(y, 5 + primerWrap.length*4.6 + 2);
     doc.setFont('helvetica','bold'); doc.setFontSize(9.8); doc.setTextColor(...COLOR.ink);
     doc.text(titulo, MARGIN, y); y += 5;
     doc.setFont('helvetica','normal'); doc.setFontSize(9.3); doc.setTextColor(...COLOR.ink);
@@ -3054,16 +3143,27 @@ async function generarPDFClinico(){
     });
     return y + 2;
   }
-  // Línea de texto simple reutilizada para Frecuencia sugerida / Duración estimada del plan.
+  // Bloque de texto reutilizado por Frecuencia sugerida / Duración estimada del plan y por
+  // párrafos largos (p. ej. Análisis Clínico Fisioterapéutico). El subtítulo (si existe)
+  // nunca queda huérfano: se reserva junto a él el alto de al menos las 2 primeras líneas.
+  // El cuerpo del texto fluye entre páginas mediante drawFlowingText (ver arriba) en vez de
+  // saltar completo a la página siguiente, evitando espacios en blanco innecesarios.
   function planTextBlock(y, titulo, texto){
-    y = checkBreak(y, 6);
-    doc.setFont('helvetica','bold'); doc.setFontSize(9.8); doc.setTextColor(...COLOR.ink);
-    doc.text(titulo, MARGIN, y); y += 5;
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.3); doc.setTextColor(...COLOR.ink);
+    const lineH = 4.6;
+    // El ajuste de línea se calcula con la MISMA fuente/tamaño con que se va a
+    // dibujar el texto (9.3 normal), para que los saltos de línea coincidan
+    // exactamente con lo que luego se renderiza.
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.3);
     const wrapped = doc.splitTextToSize(texto, CONTENT_W-2);
-    y = checkBreak(y, wrapped.length*4.6 + 2);
-    doc.text(wrapped, MARGIN+2, y);
-    return y + wrapped.length*4.6 + 4;
+    const primerasLineas = Math.min(wrapped.length, 2);
+    y = checkBreak(y, (titulo?5:0) + primerasLineas*lineH + 2);
+    if(titulo){
+      doc.setFont('helvetica','bold'); doc.setFontSize(9.8); doc.setTextColor(...COLOR.ink);
+      doc.text(titulo, MARGIN, y); y += 5;
+    }
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.3); doc.setTextColor(...COLOR.ink);
+    y = drawFlowingText(y, wrapped, lineH, MARGIN+2);
+    return y + 4;
   }
 
   drawHeader();
@@ -3077,16 +3177,14 @@ async function generarPDFClinico(){
   y += 10;
 
   // 1. Datos del evaluador
-  y = sectionTitle(y, 'Datos del evaluador');
-  y = kvTable(y, [
+  y = sectionWithTable(y, 'Datos del evaluador', [
     ['Nombre del fisioterapeuta', p.eval_nombre||'—'],
     ['Institución o centro de atención', p.eval_institucion||'—'],
     ['Fecha de evaluación', p.fecha||'—'],
   ]);
 
   // 1b. Datos del paciente
-  y = sectionTitle(y, 'Datos del paciente');
-  y = kvTable(y, [
+  y = sectionWithTable(y, 'Datos del paciente', [
     ['Código del paciente', p.codigo||'—'],
     ['Nombre', p.nombre],
     ['Edad / Sexo', `${p.edad} años · ${p.sexo==='F'?'Femenino':'Masculino'}`],
@@ -3099,8 +3197,7 @@ async function generarPDFClinico(){
   ]);
 
   // 1c. Datos del cuidador
-  y = sectionTitle(y, 'Datos del cuidador');
-  y = kvTable(y, [
+  y = sectionWithTable(y, 'Datos del cuidador', [
     ['¿Requiere cuidador?', p.requiere_cuidador||'No'],
     ['Nombre del cuidador', p.cuidador_nombre||'—'],
     ['Parentesco', p.cuidador_parentesco||'—'],
@@ -3108,8 +3205,7 @@ async function generarPDFClinico(){
   ]);
 
   // 1d. Datos antropométricos
-  y = sectionTitle(y, 'Datos antropométricos');
-  y = kvTable(y, [
+  y = sectionWithTable(y, 'Datos antropométricos', [
     ['Peso / Talla', `${p.peso||'—'} kg / ${p.talla||'—'} cm`],
     ['IMC', p.imc? p.imc.toFixed(1)+' kg/m² — '+p.imcCat : 'No calculado'],
     ['Circunferencia de pantorrilla', p.circ_pantorrilla? p.circ_pantorrilla+' cm':'—'],
@@ -3124,8 +3220,7 @@ async function generarPDFClinico(){
   ]);
 
   // 1e. Historia Clínica
-  y = sectionTitle(y, 'Historia Clínica');
-  y = kvTable(y, [
+  y = sectionWithTable(y, 'Historia Clínica', [
     ['Diagnóstico médico', p.diagnostico_medico||'—'],
     ['Motivo de consulta', p.motivo||'—'],
     ['Diagnóstico fisioterapéutico', p.diagnostico||'—'],
@@ -3136,8 +3231,7 @@ async function generarPDFClinico(){
     ['Medicación actual', p.medicacion||'—'],
   ]);
 
-  y = sectionTitle(y, 'Alteraciones clínicas');
-  y = kvTable(y, [
+  y = sectionWithTable(y, 'Alteraciones clínicas', [
     ['Alteraciones posturales', p.alteraciones_posturales||'—'],
     ['Edema', p.edema||'—'],
     ['Deformidades', p.deformidades||'—'],
@@ -3147,8 +3241,9 @@ async function generarPDFClinico(){
     ['Observaciones clínicas', p.observaciones_clinicas||'—'],
   ]);
 
-  // 2. Escalas geriátricas
-  y = sectionTitle(y, 'Resultados de escalas geriátricas');
+  // 2. Escalas geriátricas (tabla con encabezado propio: se reserva algo más de
+  // espacio junto al título para que encabezado de tabla + primera fila no queden solos)
+  y = sectionTitle(y, 'Resultados de escalas geriátricas', 22);
   const escalaRows = SCALES.map(sc=>{
     const r = state.escalas[sc.id];
     if(!r) return [sc.name, 'No evaluado', '—', 'none'];
@@ -3176,8 +3271,7 @@ async function generarPDFClinico(){
   y = doc.lastAutoTable.finalY + 9;
 
   // 3. Estado nutricional y metabólico
-  y = sectionTitle(y, 'Estado nutricional y metabólico');
-  y = kvTable(y, [
+  y = sectionWithTable(y, 'Estado nutricional y metabólico', [
     ['IMC', n.imc? n.imc.toFixed(1)+' kg/m² — '+n.imcCat : 'No calculado'],
     ['Riesgo nutricional (MNA-SF)', n.mna!==undefined? n.mna+'/14 — '+n.mnaTxt : 'No calculado'],
     ['Proteína recomendada', n.proteina? n.proteina.toFixed(0)+' g/día' : 'No calculado'],
@@ -3190,8 +3284,7 @@ async function generarPDFClinico(){
   ]);
 
   // 4. Fuerza, fragilidad y capacidad funcional
-  y = sectionTitle(y, 'Fuerza, fragilidad y capacidad funcional');
-  y = kvTable(y, [
+  y = sectionWithTable(y, 'Fuerza, fragilidad y capacidad funcional', [
     ['Fuerza de agarre', d.fuerza? d.fuerza+' kg — '+d.txt : 'No calculado'],
     ['Clasificación de fragilidad', f.txt? f.total+'/5 criterios — '+f.txt : 'No calculado'],
     ['METs de la actividad prescrita', met.valor? (met.actividad||'Actividad seleccionada')+' · '+met.valor+' METs ('+met.kcal.toFixed(0)+' kcal/sesión)' : 'No calculado'],
@@ -3232,15 +3325,25 @@ async function generarPDFClinico(){
   });
   y = planTextBlock(y, '', sugeridasPdf.length?sugeridasPdf.join(' · '):'No se identificaron sugerencias automáticas para el diagnóstico registrado.');
 
-  // 6. Análisis clínico fisioterapéutico construido mediante reglas
-  y = sectionTitle(y, 'Análisis Clínico Fisioterapéutico');
-  y = planTextBlock(y, '', generarAnalisisClinico(recordDesdeState()));
+  // 6. Análisis clínico fisioterapéutico construido mediante reglas.
+  // Se reserva junto al título el alto de sus 2 primeras líneas, igual que hace
+  // internamente planTextBlock, para que el título nunca quede huérfano.
+  const analisisClinico = generarAnalisisClinico(recordDesdeState());
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.3);
+  const analisisWrap = doc.splitTextToSize(analisisClinico, CONTENT_W-2);
+  y = sectionTitle(y, 'Análisis Clínico Fisioterapéutico', Math.min(analisisWrap.length,2)*4.6 + 2);
+  y = planTextBlock(y, '', analisisClinico);
 
   // 7. Plan de Intervención Fisioterapéutica (generado dinámicamente a partir de escalas,
   // riesgos detectados, dinamometría, fragilidad, estado nutricional, balance energético,
   // METs e hidratación del paciente)
-  y = sectionTitle(y, 'Plan de Intervención Fisioterapéutica');
   const plan = evaluarPlanIntervencion(recordDesdeState());
+  // Se reserva junto al título el alto de su primer subtítulo + primera viñeta
+  // ("Objetivos fisioterapéuticos"), para que el título nunca quede huérfano.
+  const primerObjetivo = (plan.objetivos&&plan.objetivos.length) ? plan.objetivos[0] : '';
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.3);
+  const primerObjetivoWrap = doc.splitTextToSize('•  '+primerObjetivo, CONTENT_W-2);
+  y = sectionTitle(y, 'Plan de Intervención Fisioterapéutica', 5 + 5 + primerObjetivoWrap.length*4.6 + 2);
   y = planBulletBlock(y, 'Objetivos fisioterapéuticos', plan.objetivos);
   y = planBulletBlock(y, 'Intervenciones propuestas', plan.intervenciones);
   y = planTextBlock(y, 'Frecuencia sugerida', plan.frecuencia);
@@ -3259,8 +3362,25 @@ async function generarPDFClinico(){
   });
 
   // 8. Registro fotográfico del paciente
-  y = sectionTitle(y+2, 'REGISTRO FOTOGRÁFICO');
   const fotosPdf = normalizarAnexosFotograficos(state.anexos).registroFotografico;
+  // Precarga las dimensiones de TODAS las fotos de una vez (en vez de dentro del
+  // bucle): permite estimar con precisión el alto real del primer bloque
+  // fotográfico y reservar ese espacio junto al título "REGISTRO FOTOGRÁFICO"
+  // para que el título nunca quede huérfano si la primera foto no cabe.
+  const fotosDims = await Promise.all(fotosPdf.map(f=> f.dataUrl ? loadImageDims(f.dataUrl) : Promise.resolve(null)));
+  function fotoBlockHeight(foto, dims){
+    const descripcion = foto.descripcion && foto.descripcion.trim() ? foto.descripcion.trim() : 'Sin descripción clínica registrada.';
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+    const descLines = doc.splitTextToSize(descripcion, CONTENT_W);
+    let imgH = 0;
+    if(dims){
+      imgH = CONTENT_W*(dims.h/dims.w);
+      if(imgH>105) imgH = 105;
+    }
+    return 8 + (dims?imgH+5:7) + 7 + (descLines.length*4.6) + 8;
+  }
+  const primerFotoFollow = fotosPdf.length ? fotoBlockHeight(fotosPdf[0], fotosDims[0]) : 8;
+  y = sectionTitle(y+2, 'REGISTRO FOTOGRÁFICO', primerFotoFollow);
   doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...COLOR.inkSoft);
   if(!fotosPdf.length){
     doc.text('No se han registrado fotografías clínicas.', MARGIN, y);
@@ -3273,7 +3393,7 @@ async function generarPDFClinico(){
         ? foto.descripcion.trim()
         : 'Sin descripción clínica registrada.';
       const descLines=doc.splitTextToSize(descripcion, CONTENT_W);
-      let dims=foto.dataUrl ? await loadImageDims(foto.dataUrl) : null;
+      const dims=fotosDims[index];
       let imgW=0, imgH=0;
       if(dims){
         imgW=CONTENT_W;
@@ -3281,11 +3401,11 @@ async function generarPDFClinico(){
         const maxImgH=105;
         if(imgH>maxImgH){ imgH=maxImgH; imgW=imgH*(dims.w/dims.h); }
       }
+      // Título + imagen + descripción de cada fotografía se tratan como un único
+      // bloque indivisible: si no caben completos, se saltan de página juntos
+      // (con encabezado) ANTES de dibujar nada, evitando fotos o títulos cortados.
       const blockH=8+(dims?imgH+5:7)+7+(descLines.length*4.6)+8;
-      if(y+blockH>FOOT_TOP){
-        doc.addPage();
-        y=HEAD_BOTTOM;
-      }
+      y = checkBreak(y, blockH);
 
       doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(...COLOR.tealDeep);
       doc.text(tituloFoto, MARGIN, y);
