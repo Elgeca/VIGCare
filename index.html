@@ -1121,12 +1121,44 @@ function dashNuevoPaciente(){
   doneModules.clear();
   limpiarFormularioRegistro();
   renderRegistroFotografico();
+  limpiarResultadosCalculados();
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('done'));
   updateProgress();
   document.getElementById('topName').textContent = 'Paciente sin registrar';
   document.getElementById('topMeta').textContent = '— · — · —';
   renderScales();
   enterWorkspace('registro');
+}
+// Reinicia por completo los módulos 3 a 9 (Nutrición, Metabolismo Basal, Hidratación,
+// METs y Balance, Dinamometría, Fragilidad e Informe Final) a su estado inicial "recién
+// abierto": limpia los paneles de resultado, las entradas de cada calculadora y regenera
+// los formularios dinámicos (MNA) para que ningún valor del paciente anterior quede
+// visible ni influya en el próximo cálculo. Se apoya en state.* ya reiniciado por quien
+// la invoque (p. ej. dashNuevoPaciente).
+function limpiarResultadosCalculados(){
+  // Paneles de resultado: se vacían por completo (nada de "Sin calcular" residual con datos).
+  ['imc_result','n_result','mna_result','mm_result','m_result_tmb','m_result_get',
+   'h_result','mets_result','bal_result','d_result','f_result'].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.innerHTML = '';
+  });
+  // Selects de parámetros de cálculo: vuelven a su primera opción.
+  ['n_condicion','n_actividad','m_factor','h_perfil',
+   'f_peso','f_agotamiento','f_debilidad','f_marcha','f_actividad'].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.selectedIndex = 0;
+  });
+  // Campos de entrada de las calculadoras.
+  const busqueda = document.getElementById('mets_busqueda'); if(busqueda) busqueda.value = '';
+  const actividad = document.getElementById('mets_actividad'); if(actividad) actividad.value = '1.5';
+  const seleccion = document.getElementById('mets_seleccion'); if(seleccion) seleccion.textContent = 'Seleccione una actividad del compendio.';
+  const metsMin = document.getElementById('mets_min'); if(metsMin) metsMin.value = '30';
+  const balIngesta = document.getElementById('bal_ingesta'); if(balIngesta) balIngesta.value = '';
+  const dFuerza = document.getElementById('d_fuerza'); if(dFuerza) dFuerza.value = '';
+  const autocomplete = document.getElementById('mets_autocomplete'); if(autocomplete){ autocomplete.innerHTML=''; autocomplete.style.display='none'; }
+  // Formulario dinámico de MNA (regenerado desde cero para descartar selecciones previas).
+  renderMNA();
+  // Estado y mensajes del PDF/Informe.
+  const pdfStatus = document.getElementById('pdfStatus'); if(pdfStatus) pdfStatus.textContent = '';
+  generarInforme();
 }
 function dashPacientes(){
   pacSearchTerm=''; pacSortDir='desc';
