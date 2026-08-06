@@ -2472,11 +2472,11 @@ function renderRegistroFotografico(){
    Hallazgos posturales", por lo que el flujo del informe y del
    PDF no cambia.
    ============================================================ */
-// La configuración de Gemini queda interna para que el fisioterapeuta no tenga
-// que ver ni modificar datos técnicos en la interfaz.
-const IA_DEFAULT_API_KEY = 'AQ.Ab8RN6K-51AOQBhCH7BUtf6q8JkWPgADbWDsnHqDb0dfq8KNaQ';
-const IA_DEFAULT_MODEL = 'gemini-3.5-flash-lite';
-const IA_MODELOS_RESPALDO = ['gemini-3.6-flash'];
+// Gemini se consulta mediante un Cloudflare Worker. La APK no contiene ninguna
+// clave API; el Worker conserva el secreto y prueba los modelos disponibles.
+const IA_WORKER_URL = 'https://vigcare-ia.gecaj72020.workers.dev/analizar';
+const IA_DEFAULT_MODEL = 'cloudflare-worker';
+const IA_MODELOS_RESPALDO = [];
 const IA_CACHE_KEY = 'vigcare_ia_resultados_cache_v2';
 const MP_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 const MP_WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
@@ -2485,7 +2485,7 @@ let mpScriptPromise = null;
 let mpPosePromise = null;
 
 function cargarConfigIA(){
-  return { apiKey: IA_DEFAULT_API_KEY, modelo: IA_DEFAULT_MODEL };
+  return { endpoint: IA_WORKER_URL, modelo: IA_DEFAULT_MODEL };
 }
 
 const IA_PROMPT_SISTEMA = `Actúa como asistente de DOCUMENTACIÓN FISIOTERAPÉUTICA para analizar una fotografía clínica.
@@ -2595,45 +2595,41 @@ function bloquearBotonPorCuota(btnEl,statusEl,segundos,mensajeExtra=''){
 async function solicitarAnalisisGemini(modelo,apiKey,base64Data,mimeType){
   let respuesta;
   try{
-    respuesta = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(modelo)+':generateContent',
-      {
-        method:'POST',
-        headers:{'Content-Type':'application/json','x-goog-api-key':apiKey},
-        body:JSON.stringify({
-          system_instruction:{parts:[{text:IA_PROMPT_SISTEMA}]},
-          contents:[{
-            role:'user',
-            parts:[
-              {text:'Analiza esta imagen desde un enfoque de observación fisioterapéutica. Redacta solamente las alteraciones posturales, biomecánicas, de alineación y las compensaciones visibles. No narres la escena ni describas de forma general a la persona. Respeta exactamente el formato solicitado.'},
-              {inline_data:{mime_type:mimeType,data:base64Data}}
-            ]
-          }],
-          generationConfig:{
-            maxOutputTokens:700,
-            temperature:0.1,
-            thinkingConfig:{thinkingLevel:'minimal'}
-          }
-        })
-      }
-    );
+    respuesta = await fetch(IA_WORKER_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({base64Data,mimeType})
+    });
   }catch(e){
     return {ok:false,status:0,datos:null,mensaje:'No hay conexión con el servicio de IA.'};
   }
 
-  let datos=null;
-  try{ datos=await respuesta.json(); }catch(e){ datos=null; }
-  if(!respuesta.ok){
-    const mensaje=datos&&datos.error&&datos.error.message ? datos.error.message : 'Error HTTP '+respuesta.status;
+  let envoltura=null;
+  try{ envoltura=await respuesta.json(); }catch(e){ envoltura=null; }
+
+  if(!respuesta.ok || !envoltura || envoltura.ok!==true){
+    const mensaje=envoltura&&envoltura.mensaje
+      ? envoltura.mensaje
+      : 'Error HTTP '+respuesta.status;
+    const estado=envoltura&&Number(envoltura.status)
+      ? Number(envoltura.status)
+      : respuesta.status;
     return {
       ok:false,
-      status:respuesta.status,
-      datos,
+      status:estado,
+      datos:envoltura,
       mensaje,
-      retrySeconds:respuesta.status===429 ? extraerSegundosReintento(datos,mensaje) : 0
+      retrySeconds:estado===429 ? extraerSegundosReintento(envoltura,mensaje) : 0
     };
   }
-  return {ok:true,status:respuesta.status,datos,mensaje:''};
+
+  return {
+    ok:true,
+    status:respuesta.status,
+    datos:envoltura.datos,
+    modelo:envoltura.modelo||'',
+    mensaje:''
+  };
 }
 
 function cargarTextoAnalisisEnFoto(id,texto){
@@ -2863,14 +2859,6 @@ async function analizarFotografiaConIA(id){
   const statusEl=document.getElementById('foto_ia_status_'+id);
   const btnEl=document.getElementById('foto_ia_btn_'+id);
 
-  if(!config.apiKey){
-    if(statusEl){
-      statusEl.className='foto-ia-status risk';
-      statusEl.textContent='No fue posible inicializar el servicio de análisis con IA.';
-    }
-    return;
-  }
-
   const textoCache=obtenerAnalisisCache(foto.dataUrl);
   if(textoCache){
     cargarTextoAnalisisEnFoto(id,textoCache);
@@ -2905,7 +2893,7 @@ async function analizarFotografiaConIA(id){
         statusEl.className='foto-ia-status';
         statusEl.innerHTML='<span class="foto-ia-spinner"></span>El modelo principal está ocupado; probando una alternativa…';
       }
-      const resultado=await solicitarAnalisisGemini(modelos[i],config.apiKey,base64Data,mimeType);
+      const resultado=await solicitarAnalisisGemini(modelos[i],'',base64Data,mimeType);
       if(resultado.ok){
         respuestaFinal=resultado;
         break;
