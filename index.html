@@ -2986,327 +2986,260 @@ function generarInforme(){
   if(!state.paciente){ c.innerHTML = `<div class="result risk">Aún no se ha completado el registro del paciente. Ve al módulo 1 para comenzar.</div>`; return; }
   c.innerHTML = buildInformeHTML(recordDesdeState());
 }
-// Construye el HTML del Informe Final / Expediente clínico a partir de cualquier "record"
-// (ya sea el estado en vivo del paciente que se está evaluando, o un expediente ya guardado).
+// Construye un informe exclusivamente narrativo. Los datos identificativos del
+// evaluador y del paciente, así como la historia clínica y los antecedentes, se
+// conservan internamente para los cálculos, pero no se muestran en el informe.
+function textoInformePlano(valor){
+  return valor==null ? '' : String(valor).replace(/\s+/g,' ').trim();
+}
+function minusculaInicialInforme(texto){
+  const limpio=textoInformePlano(texto);
+  if(!limpio) return '';
+  if(/^[A-ZÁÉÍÓÚÑ]{2,}\b/.test(limpio)) return limpio;
+  return limpio.charAt(0).toLowerCase()+limpio.slice(1);
+}
+function sinPuntoFinalInforme(texto){
+  return textoInformePlano(texto).replace(/[.;:,]+$/,'');
+}
+function unirNaturalInforme(items){
+  const arr=(items||[]).map(sinPuntoFinalInforme).filter(Boolean);
+  if(!arr.length) return '';
+  if(arr.length===1) return arr[0];
+  return arr.slice(0,-1).join(', ')+' y '+arr[arr.length-1];
+}
+function listaComoOracionInforme(items, inicio){
+  const unido=unirNaturalInforme(items);
+  return unido ? (inicio+unido+'.') : '';
+}
+function limpiarHallazgoFotograficoParaInforme(texto){
+  return String(texto||'')
+    .split(/\r?\n/)
+    .map(linea=>linea.trim())
+    .filter(linea=>linea && !/^(hallazgos posturales observables|hallazgos observados|observaciones fisioterapéuticas|observaciones)$/i.test(linea))
+    .map(linea=>linea.replace(/^[•\-–—]\s*/,''))
+    .join(' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function tieneValorInforme(valor){
+  return valor!==undefined && valor!==null && valor!=='' && !(typeof valor==='number' && Number.isNaN(valor));
+}
+
+function generarSeccionesInformeNarrativo(rec){
+  const p=rec.paciente||{}, n=rec.nutricion||{}, m=rec.metabolismo||{}, h=rec.hidratacion||{},
+        met=rec.mets||{}, bal=rec.balance||{}, d=rec.dinamometria||{}, f=rec.fragilidad||{},
+        escalas=rec.escalas||{};
+  const secciones=[];
+
+  const resultadosEscalas=[];
+  SCALES.forEach(sc=>{
+    const r=escalas[sc.id];
+    if(!r) return;
+    const puntaje=sc.max ? `${r.total} de ${sc.max}` : String(r.total);
+    resultadosEscalas.push(`En ${sc.name} se obtuvo un resultado de ${puntaje}, interpretado como ${minusculaInicialInforme(r.txt||'resultado registrado')}.`);
+  });
+  if(resultadosEscalas.length){
+    secciones.push({titulo:'Resultados de las escalas geriátricas',parrafos:[resultadosEscalas.join(' ')]});
+  }
+
+  const hallazgos=[];
+  if(p.alteraciones_posturales) hallazgos.push(`Se registraron alteraciones posturales: ${sinPuntoFinalInforme(p.alteraciones_posturales)}.`);
+  if(p.edema) hallazgos.push(`Respecto al edema, se documentó: ${sinPuntoFinalInforme(p.edema)}.`);
+  if(p.deformidades) hallazgos.push(`En la valoración de deformidades se consignó: ${sinPuntoFinalInforme(p.deformidades)}.`);
+  if(p.ayudas_tecnicas) hallazgos.push(`En relación con las ayudas técnicas, se registró: ${sinPuntoFinalInforme(p.ayudas_tecnicas)}.`);
+  if(p.alteraciones_marcha) hallazgos.push(`La valoración de la marcha indicó: ${sinPuntoFinalInforme(p.alteraciones_marcha)}.`);
+  if(p.limitaciones_funcionales) hallazgos.push(`Las limitaciones funcionales identificadas fueron: ${sinPuntoFinalInforme(p.limitaciones_funcionales)}.`);
+  if(p.observaciones_clinicas) hallazgos.push(`Como observación clínica adicional se documentó: ${sinPuntoFinalInforme(p.observaciones_clinicas)}.`);
+  if(hallazgos.length){
+    secciones.push({titulo:'Hallazgos clínicos fisioterapéuticos',parrafos:[hallazgos.join(' ')]});
+  }
+
+  const nutricion=[];
+  if(tieneValorInforme(n.imc)) nutricion.push(`El índice de masa corporal calculado fue de ${Number(n.imc).toFixed(1)} kg/m², correspondiente a ${minusculaInicialInforme(n.imcCat||'clasificación no registrada')}.`);
+  if(tieneValorInforme(n.mna)) nutricion.push(`En el tamizaje nutricional MNA-SF se obtuvo ${n.mna} de 14 puntos, con interpretación de ${minusculaInicialInforme(n.mnaTxt||'resultado registrado')}.`);
+  if(tieneValorInforme(n.proteina)) nutricion.push(`El requerimiento proteico estimado fue de ${Number(n.proteina).toFixed(0)} gramos por día.`);
+  if(tieneValorInforme(n.calorias)) nutricion.push(`El requerimiento calórico estimado fue de ${Number(n.calorias).toFixed(0)} kilocalorías por día.`);
+  if(tieneValorInforme(n.smm)){
+    let frase=`La masa muscular estimada fue de ${Number(n.smm).toFixed(1)} kg`;
+    if(tieneValorInforme(n.smi)) frase+=`, con un índice de masa muscular esquelética de ${Number(n.smi).toFixed(2)} kg/m²`;
+    nutricion.push(frase+'.');
+  }
+  if(tieneValorInforme(m.bmr)) nutricion.push(`La tasa metabólica basal estimada fue de ${Number(m.bmr).toFixed(0)} kilocalorías por día.`);
+  if(tieneValorInforme(m.get)) nutricion.push(`El gasto energético total estimado fue de ${Number(m.get).toFixed(0)} kilocalorías por día.`);
+  if(tieneValorInforme(h.litros)) nutricion.push(`La recomendación hídrica calculada fue de ${Number(h.litros).toFixed(2)} litros por día.`);
+  if(tieneValorInforme(bal.pct)){
+    const diferenciaBalance=tieneValorInforme(bal.diff) ? `${Number(bal.diff)>=0?'+':''}${Number(bal.diff).toFixed(0)} kilocalorías` : 'diferencia no registrada';
+    nutricion.push(`El balance energético correspondió al ${Number(bal.pct).toFixed(0)} % del gasto energético total, con ${diferenciaBalance} y clasificación de ${minusculaInicialInforme(bal.txt||'resultado registrado')}.`);
+  }
+  if(nutricion.length){
+    secciones.push({titulo:'Estado nutricional y metabólico',parrafos:[nutricion.join(' ')]});
+  }
+
+  const capacidad=[];
+  if(tieneValorInforme(d.fuerza)) capacidad.push(`La fuerza de agarre registrada fue de ${d.fuerza} kg, con interpretación de ${minusculaInicialInforme(d.txt||'resultado registrado')}.`);
+  if(f.txt) capacidad.push(`La valoración de fragilidad reunió ${tieneValorInforme(f.total)?f.total:'—'} de 5 criterios y se clasificó como ${minusculaInicialInforme(f.txt)}.`);
+  if(tieneValorInforme(met.valor)){
+    let frase=`La actividad funcional seleccionada correspondió a ${met.valor} METs`;
+    if(met.actividad) frase+=` para ${minusculaInicialInforme(met.actividad)}`;
+    if(tieneValorInforme(met.kcal)) frase+=`, con un gasto aproximado de ${Number(met.kcal).toFixed(0)} kilocalorías por sesión`;
+    capacidad.push(frase+'.');
+  }
+  if(capacidad.length){
+    secciones.push({titulo:'Fuerza, fragilidad y capacidad funcional',parrafos:[capacidad.join(' ')]});
+  }
+
+  const banderas=[];
+  if(n.imcCat && (n.imcCat==='Bajo peso'||n.imcCat==='Obesidad')) banderas.push('alteración del IMC');
+  if(n.mnaTxt && n.mnaTxt!=='Estado nutricional normal') banderas.push('riesgo nutricional');
+  if(d.dinapenia) banderas.push('dinapenia');
+  if(f.txt && f.txt!=='Robusto') banderas.push(`clasificación de fragilidad ${minusculaInicialInforme(f.txt)}`);
+  if(bal.txt && bal.txt!=='Balance energético adecuado') banderas.push('desbalance energético');
+  secciones.push({
+    titulo:'Síntesis de alertas clínicas',
+    parrafos:[banderas.length
+      ? `Los resultados obtenidos señalan ${unirNaturalInforme(banderas)}. Estos hallazgos deben considerarse al definir la intensidad, progresión y supervisión de la intervención.`
+      : 'Los resultados registrados no muestran alertas clínicas automáticas relevantes dentro de los parámetros evaluados.']
+  });
+
+  const fotos=normalizarAnexosFotograficos(rec.anexos).registroFotografico;
+  const fotoParrafos=fotos.map((foto,index)=>{
+    const limpio=limpiarHallazgoFotograficoParaInforme(foto.descripcion);
+    return limpio
+      ? `En el registro fotográfico ${index+1}, ${minusculaInicialInforme(limpio)}`
+      : `En el registro fotográfico ${index+1} no se registró una descripción clínica de hallazgos posturales.`;
+  });
+  if(fotos.length){
+    secciones.push({titulo:'Hallazgos del registro fotográfico',parrafos:fotoParrafos});
+  }
+
+  const analisis=generarAnalisisClinico(rec);
+  if(analisis){
+    secciones.push({titulo:'Análisis clínico fisioterapéutico',parrafos:analisis.split(/\n\s*\n/).filter(Boolean)});
+  }
+
+  const plan=evaluarPlanIntervencion(rec);
+  const planParrafos=[];
+  const objetivos=listaComoOracionInforme(plan.objetivos,'Los objetivos fisioterapéuticos propuestos son ');
+  const intervenciones=listaComoOracionInforme(plan.intervenciones,'Las intervenciones planteadas comprenden ');
+  const recomendaciones=listaComoOracionInforme(plan.recomendaciones,'Las recomendaciones complementarias incluyen ');
+  if(objetivos) planParrafos.push(objetivos);
+  if(intervenciones) planParrafos.push(intervenciones);
+  planParrafos.push(`La frecuencia sugerida es ${minusculaInicialInforme(plan.frecuencia)} La duración estimada es ${minusculaInicialInforme(plan.duracion)}`);
+  if(recomendaciones) planParrafos.push(recomendaciones);
+  secciones.push({titulo:'Plan de intervención fisioterapéutica',parrafos:planParrafos});
+
+  const conclusiones=buildConclusionesHTML(rec).split(/\n\s*\n/).filter(Boolean);
+  secciones.push({titulo:'Conclusiones y recomendaciones fisioterapéuticas',parrafos:conclusiones});
+
+  return secciones;
+}
+
 function buildInformeHTML(rec){
-  const p = rec.paciente || {};
-  const n = rec.nutricion||{}, m = rec.metabolismo||{}, h = rec.hidratacion||{},
-        met = rec.mets||{}, bal = rec.balance||{}, d = rec.dinamometria||{}, f = rec.fragilidad||{},
-        escalas = rec.escalas||{};
-
-  const flags = [];
-  if(n.imcCat && (n.imcCat==='Bajo peso'||n.imcCat==='Obesidad')) flags.push('IMC alterado');
-  if(n.mnaTxt && n.mnaTxt!=='Estado nutricional normal') flags.push('Riesgo nutricional');
-  if(d.dinapenia) flags.push('Dinapenia');
-  if(f.txt && f.txt!=='Robusto') flags.push('Fragilidad: '+f.txt);
-  if(bal.txt && bal.txt!=='Balance energético adecuado') flags.push('Desbalance energético');
-
-  const escalasRows = SCALES.map(sc=>{
-    const r = escalas[sc.id];
-    return `<tr><th>${sc.name}</th><td>${r? (r.total+(sc.max?('/'+sc.max):'')+' — '+r.txt) : 'No evaluado'}</td></tr>`;
+  const secciones=generarSeccionesInformeNarrativo(rec);
+  const fotos=normalizarAnexosFotograficos(rec.anexos).registroFotografico;
+  return secciones.map(seccion=>{
+    if(seccion.titulo==='Hallazgos del registro fotográfico'){
+      return `
+        <div class="card informe-narrativo">
+          <h3>${escapeHtml(seccion.titulo)}</h3>
+          ${fotos.map((foto,index)=>`
+            <div class="foto-registro-report" style="margin-bottom:22px;">
+              <h4>${escapeHtml(foto.titulo||`Registro fotográfico ${index+1}`)}</h4>
+              ${foto.dataUrl?`<div class="anexo-img-wrap"><img src="${foto.dataUrl}" class="anexo-img" alt="Registro fotográfico ${index+1}"></div>`:''}
+              <p style="margin:12px 0 0;line-height:1.75;font-size:14px;text-align:justify;">${escapeHtml(seccion.parrafos[index]||'Sin hallazgos fotográficos redactados.')}</p>
+            </div>
+          `).join('')}
+        </div>`;
+    }
+    return `
+      <div class="card informe-narrativo">
+        <h3>${escapeHtml(seccion.titulo)}</h3>
+        ${seccion.parrafos.map(parrafo=>`<p style="margin:0 0 12px;line-height:1.75;font-size:14px;text-align:justify;">${escapeHtml(parrafo)}</p>`).join('')}
+      </div>`;
   }).join('');
-
-  const conclusiones = buildConclusionesHTML(rec);
-
-  return `
-    <div class="card">
-      <h3>Datos del evaluador</h3>
-      <table class="report">
-        <tr><th>Nombre del fisioterapeuta</th><td>${p.eval_nombre||'—'}</td></tr>
-        <tr><th>Institución o centro de atención</th><td>${p.eval_institucion||'—'}</td></tr>
-        <tr><th>Fecha de evaluación</th><td>${p.fecha||'—'}</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h3>Datos del paciente</h3>
-      <table class="report">
-        <tr><th>Código del paciente</th><td>${p.codigo||'—'}</td></tr>
-        <tr><th>Nombre</th><td>${p.nombre||'—'}</td></tr>
-        <tr><th>Edad / Sexo</th><td>${p.edad||'—'} años · ${p.sexo==='F'?'Femenino':(p.sexo==='M'?'Masculino':'—')}</td></tr>
-        <tr><th>Fecha de nacimiento</th><td>${p.fnac||'—'}</td></tr>
-        <tr><th>Número de cédula</th><td>${p.cedula||'—'}</td></tr>
-        <tr><th>Estado civil</th><td>${p.estado_civil||'—'}</td></tr>
-        <tr><th>Ocupación</th><td>${p.ocupacion||'—'}</td></tr>
-        <tr><th>Dirección</th><td>${p.direccion||'—'}</td></tr>
-        <tr><th>Teléfono</th><td>${p.telefono||'—'}</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h3>Datos del cuidador</h3>
-      <table class="report">
-        <tr><th>¿Requiere cuidador?</th><td>${p.requiere_cuidador||'No'}</td></tr>
-        <tr><th>Nombre del cuidador</th><td>${p.cuidador_nombre||'—'}</td></tr>
-        <tr><th>Parentesco</th><td>${p.cuidador_parentesco||'—'}</td></tr>
-        <tr><th>Teléfono</th><td>${p.cuidador_telefono||'—'}</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h3>Datos antropométricos</h3>
-      <table class="report">
-        <tr><th>Peso / Talla</th><td>${p.peso||'—'} kg / ${p.talla||'—'} cm</td></tr>
-        <tr><th>IMC</th><td>${p.imc?p.imc.toFixed(1)+' kg/m² — '+p.imcCat:'No calculado'}</td></tr>
-        <tr><th>Circunferencia de pantorrilla</th><td>${p.circ_pantorrilla?p.circ_pantorrilla+' cm':'—'}</td></tr>
-        <tr><th>Circunferencia braquial</th><td>${p.circ_braquial?p.circ_braquial+' cm':'—'}</td></tr>
-        <tr><th>Peso habitual</th><td>${p.peso_habitual?p.peso_habitual+' kg':'—'}</td></tr>
-        <tr><th>Peso ideal</th><td>${p.peso_ideal?p.peso_ideal+' kg':'—'}</td></tr>
-        <tr><th>Pérdida de peso reciente</th><td>${p.perdida_peso||'No'}${p.perdida_peso_detalle?' — '+p.perdida_peso_detalle:''}</td></tr>
-        <tr><th>Presión arterial / FC / SpO₂</th><td>${p.pa||'—'} · ${p.fc?p.fc+' lpm':'—'} · ${p.spo2?p.spo2+' %':'—'}</td></tr>
-        <tr><th>Consentimiento informado</th><td>${p.consentimiento?'Otorgado':'No registrado'}</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h3>Historia Clínica</h3>
-      <table class="report">
-        <tr><th>Diagnóstico médico</th><td>${p.diagnostico_medico||'—'}</td></tr>
-        <tr><th>Motivo de consulta</th><td>${p.motivo||'—'}</td></tr>
-        <tr><th>Diagnóstico fisioterapéutico</th><td>${p.diagnostico||'—'}</td></tr>
-        <tr><th>Antecedentes personales</th><td>${p.antecedentes_personales||'—'}</td></tr>
-        <tr><th>Antecedentes patológicos</th><td>${p.antecedentes||'—'}</td></tr>
-        <tr><th>Antecedentes patológicos familiares</th><td>${p.antecedentes_familiares||'—'}</td></tr>
-        <tr><th>Antecedentes patológicos quirúrgicos</th><td>${p.antecedentes_quirurgicos||'—'}</td></tr>
-        <tr><th>Medicación actual</th><td>${p.medicacion||'—'}</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h3>Escalas sugeridas según la patología</h3>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        ${(function(){
-          const texto=normalizarTextoClinico(`${p.diagnostico_medico||''} ${p.diagnostico||''}`);
-          const arr=[];
-          REGLAS_ESCALAS_POR_PATOLOGIA.forEach(r=>{if(r.claves.some(k=>texto.includes(normalizarTextoClinico(k))))r.escalas.forEach(e=>{if(!arr.includes(e))arr.push(e);});});
-          return arr.length?arr.map(e=>`<span class="pill">${e}</span>`).join(''):'No se identificaron sugerencias automáticas para el diagnóstico registrado.';
-        })()}
-      </div>
-      <p class="cite">Las escalas se muestran como orientación y no se aplican automáticamente.</p>
-    </div>
-
-    <div class="card">
-      <h3>ALTERACIONES CLÍNICAS</h3>
-      <table class="report">
-        <tr><th>Alteraciones posturales</th><td>${p.alteraciones_posturales||'—'}</td></tr>
-        <tr><th>Edema</th><td>${p.edema||'—'}</td></tr>
-        <tr><th>Deformidades</th><td>${p.deformidades||'—'}</td></tr>
-        <tr><th>Ayudas técnicas</th><td>${p.ayudas_tecnicas||'—'}</td></tr>
-        <tr><th>Alteraciones de la marcha</th><td>${p.alteraciones_marcha||'—'}</td></tr>
-        <tr><th>Limitaciones funcionales</th><td>${p.limitaciones_funcionales||'—'}</td></tr>
-        <tr><th>Observaciones clínicas</th><td>${p.observaciones_clinicas||'—'}</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h3>Resultados de escalas geriátricas</h3>
-      <table class="report">${escalasRows}</table>
-    </div>
-
-    <div class="card">
-      <h3>Estado nutricional y metabólico</h3>
-      <table class="report">
-        <tr><th>IMC</th><td>${n.imc?n.imc.toFixed(1)+' kg/m² — '+n.imcCat:'No calculado'}</td></tr>
-        <tr><th>Riesgo nutricional (MNA-SF)</th><td>${n.mna!==undefined?n.mna+'/14 — '+n.mnaTxt:'No calculado'}</td></tr>
-        <tr><th>Proteína recomendada</th><td>${n.proteina?n.proteina.toFixed(0)+' g/día':'No calculado'}</td></tr>
-        <tr><th>Requerimiento calórico</th><td>${n.calorias?n.calorias.toFixed(0)+' kcal/día':'No calculado'}</td></tr>
-        <tr><th>Masa muscular estimada</th><td>${n.smm?n.smm.toFixed(1)+' kg (SMI '+n.smi.toFixed(2)+' kg/m²)':'No calculado'}</td></tr>
-        <tr><th>Tasa Metabólica Basal</th><td>${m.bmr?m.bmr.toFixed(0)+' kcal/día':'No calculado'}</td></tr>
-        <tr><th>Gasto Energético Total</th><td>${m.get?m.get.toFixed(0)+' kcal/día':'No calculado'}</td></tr>
-        <tr><th>Hidratación recomendada</th><td>${h.litros?h.litros.toFixed(2)+' L/día':'No calculado'}</td></tr>
-        <tr><th>Balance energético</th><td>${bal.pct?bal.pct.toFixed(0)+'% del GET ('+(bal.diff>=0?'+':'')+bal.diff.toFixed(0)+' kcal) — '+bal.txt:'No calculado'}</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h3>Fuerza, fragilidad y capacidad funcional</h3>
-      <table class="report">
-        <tr><th>Fuerza de agarre</th><td>${d.fuerza?d.fuerza+' kg — '+d.txt:'No calculado'}</td></tr>
-        <tr><th>Clasificación de fragilidad</th><td>${f.txt?f.total+'/5 criterios — '+f.txt:'No calculado'}</td></tr>
-        <tr><th>METs de la actividad prescrita</th><td>${met.valor?(met.actividad||'Actividad seleccionada')+' · '+met.valor+' METs ('+met.kcal.toFixed(0)+' kcal/sesión)':'No calculado'}</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h3>Banderas clínicas identificadas</h3>
-      ${flags.length? `<div style="display:flex;gap:8px;flex-wrap:wrap;">${flags.map(fl=>`<span class="pill warn">${fl}</span>`).join('')}</div>` : `<div class="pill ok">Sin banderas de alarma relevantes</div>`}
-    </div>
-
-    <div class="card">
-      <h3>REGISTRO FOTOGRÁFICO</h3>
-      ${buildRegistroFotograficoHTML(rec)}
-    </div>
-
-    <div class="card">
-      <h3>ANÁLISIS CLÍNICO FISIOTERAPÉUTICO</h3>
-      <div style="line-height:1.7;font-size:14px;white-space:pre-line;">${generarAnalisisClinico(rec)}</div>
-    </div>
-
-    <div class="card">
-      <h3>Plan de Intervención Fisioterapéutica</h3>
-      ${buildPlanIntervencionHTML(rec)}
-    </div>
-
-    <div class="card">
-      <h3>Conclusiones y recomendaciones fisioterapéuticas</h3>
-      <div style="white-space:pre-line;line-height:1.7;font-size:14px;">${conclusiones}</div>
-    </div>
-
-  `;
 }
 
 /* ------------------------------------------------------------
-   Análisis Clínico Fisioterapéutico — redacción narrativa
-   ------------------------------------------------------------
-   Esta función NO repite los datos crudos que ya aparecen en otras
-   secciones del informe (tabla de escalas, estado nutricional,
-   METs, fuerza/fragilidad, registro fotográfico). En su lugar,
-   interpreta y sintetiza esos resultados en un texto redactado
-   como lo haría el fisioterapeuta al revisar el expediente completo.
-   Cada dato clínico se menciona una sola vez, en el bloque narrativo
-   donde tiene más sentido (introducción, hallazgos funcionales,
-   hallazgos musculoesqueléticos, estado nutricional o conclusión).
+   Análisis Clínico Fisioterapéutico — síntesis narrativa sin
+   datos identificativos, diagnóstico ni antecedentes personales.
    ------------------------------------------------------------ */
 function generarAnalisisClinico(rec){
   const p=rec.paciente||{}, n=rec.nutricion||{}, d=rec.dinamometria||{}, f=rec.fragilidad||{},
-        bal=rec.balance||{}, escalas=rec.escalas||{}, a=rec.anexos||{};
+        bal=rec.balance||{}, escalas=rec.escalas||{};
   const get=id=>escalas[id];
-
-  // --- Utilidades de redacción ---
-  const clean=(str)=> !str ? '' : str.toString().split('\n').map(s=>s.trim().replace(/\.$/,'')).filter(Boolean).join('; ');
-  const lowerFirst=(str)=>{
-    if(!str) return '';
-    if(/^[A-ZÁÉÍÓÚÑ]{2,}\b/.test(str)) return str; // no tocar siglas (IMC, MMSE, TUG...)
-    return str.charAt(0).toLowerCase()+str.slice(1);
-  };
-  const joinNatural=(arr)=>{
-    const a=arr.filter(Boolean);
-    if(a.length===0) return '';
-    if(a.length===1) return a[0];
-    return a.slice(0,-1).join(', ')+' y '+a[a.length-1];
-  };
-
   const parrafos=[];
-  const sexo = p.sexo==='F' ? 'mujer' : (p.sexo==='M' ? 'hombre' : 'persona');
-  const articuloSexo = sexo==='hombre' ? 'un' : 'una'; // "un hombre" / "una mujer" / "una persona"
-  const nounPaciente = sexo==='hombre' ? 'el paciente' : (sexo==='mujer' ? 'la paciente' : 'la persona evaluada');
-
-  /* ============ 1. Introducción ============ */
-  let intro = `Se realiza la valoración fisioterapéutica de ${articuloSexo} ${sexo} de ${p.edad||'edad no registrada'} años`;
-  const diagMed = clean(p.diagnostico_medico);
-  const diagFt = clean(p.diagnostico);
-  if(diagMed) intro += `, con diagnóstico médico de ${diagMed}`;
-  if(diagFt) intro += `${diagMed?' y':','} diagnóstico fisioterapéutico de ${lowerFirst(diagFt)}`;
-  intro += '.';
-  const antecedentes = [clean(p.antecedentes_personales), clean(p.antecedentes)].filter(Boolean).join('; ');
-  if(antecedentes) intro += ` Entre sus antecedentes relevantes se destaca ${lowerFirst(antecedentes)}.`;
-  parrafos.push(intro);
-
-  /* ============ 2. Hallazgos funcionales (síntesis de escalas, sin repetir puntajes) ============ */
-  const funcFrases=[];
+  const funcional=[];
 
   const mmse=get('mmse');
-  if(mmse && mmse.total<27){
-    funcFrases.push(`a nivel cognitivo se evidencia ${lowerFirst(mmse.txt)}, dato a considerar al momento de instruir los ejercicios y garantizar la seguridad durante las sesiones`);
-  }
-
+  if(mmse) funcional.push(`el desempeño cognitivo fue interpretado como ${minusculaInicialInforme(mmse.txt)}`);
   const barthel=get('barthel'), lawton=get('lawton');
-  if(barthel || lawton){
-    const avd=[];
-    if(barthel) avd.push(`en las actividades básicas (${lowerFirst(barthel.txt)})`);
-    if(lawton) avd.push(`en las actividades instrumentales (${lowerFirst(lawton.txt.replace(/\s*\(AIVD\)\s*$/i,''))})`);
-    funcFrases.push(`se identifica dependencia funcional ${joinNatural(avd)}`);
-  }
+  if(barthel) funcional.push(`la funcionalidad en actividades básicas correspondió a ${minusculaInicialInforme(barthel.txt)}`);
+  if(lawton) funcional.push(`la funcionalidad en actividades instrumentales correspondió a ${minusculaInicialInforme(lawton.txt)}`);
 
   const berg=get('berg'), tinetti=get('tinetti'), tug=get('tug'), sppb=get('sppb');
-  const riesgoAltoCaidas = (tug&&tug.total>=20)||(berg&&berg.total<=20)||(tinetti&&tinetti.total<19)||(sppb&&sppb.total<=3);
-  const riesgoModeradoCaidas = !riesgoAltoCaidas && ((tug&&tug.total>=10)||(berg&&berg.total<=40)||(tinetti&&tinetti.total<=24)||(sppb&&sppb.total<=6));
-  const tugNormal = tug && tug.total<10;
-  if(riesgoAltoCaidas||riesgoModeradoCaidas){
-    let fraseCaidas = `presenta un riesgo ${riesgoAltoCaidas?'alto':'moderado'} de caídas, con alteración del equilibrio estático y dinámico`;
-    if(tugNormal) fraseCaidas += '; llama la atención que el tiempo cronometrado de marcha se mantenga dentro de rango normal, por lo que el riesgo debe interpretarse principalmente a partir de las pruebas específicas de equilibrio y no de la velocidad funcional aislada';
-    funcFrases.push(fraseCaidas);
-  } else if(tug||berg||tinetti||sppb){
-    funcFrases.push('no se evidencia un riesgo relevante de caídas en las pruebas de equilibrio y marcha aplicadas');
-  }
+  const riesgoAlto=(tug&&tug.total>=20)||(berg&&berg.total<=20)||(tinetti&&tinetti.total<19)||(sppb&&sppb.total<=3);
+  const riesgoModerado=!riesgoAlto&&((tug&&tug.total>=10)||(berg&&berg.total<=40)||(tinetti&&tinetti.total<=24)||(sppb&&sppb.total<=6));
+  if(riesgoAlto) funcional.push('las pruebas de equilibrio y movilidad indican un riesgo alto de caídas');
+  else if(riesgoModerado) funcional.push('las pruebas de equilibrio y movilidad indican un riesgo moderado de caídas');
+  else if(berg||tinetti||tug||sppb) funcional.push('las pruebas de equilibrio y movilidad no identifican un riesgo relevante de caídas');
 
   const chairstand=get('chairstand'), sarcf=get('sarcf');
-  const riesgoSarcopenia = d.dinapenia || (chairstand&&chairstand.total<8) || (sarcf&&sarcf.total>=4);
-  if(f.txt){
-    let fraseFrag = `la clasificación de fragilidad según el fenotipo de Fried corresponde a ${lowerFirst(f.txt)}`;
-    if(riesgoSarcopenia) fraseFrag += ', aunque se identifican signos de riesgo de sarcopenia (fuerza de agarre y/o rendimiento muscular funcional disminuidos) que conviene vigilar';
-    funcFrases.push(fraseFrag);
-  } else if(riesgoSarcopenia){
-    funcFrases.push('se identifican signos de riesgo de sarcopenia (fuerza de agarre y/o rendimiento muscular funcional disminuidos)');
-  }
-
+  const riesgoSarcopenia=d.dinapenia||(chairstand&&chairstand.total<8)||(sarcf&&sarcf.total>=4);
+  if(riesgoSarcopenia) funcional.push('se identifican indicadores compatibles con disminución del rendimiento muscular y riesgo de sarcopenia');
+  if(f.txt) funcional.push(`la clasificación funcional de fragilidad corresponde a ${minusculaInicialInforme(f.txt)}`);
   const gds=get('gds');
-  if(gds && gds.total>=5){
-    funcFrases.push(`el tamizaje de depresión geriátrica sugiere ${lowerFirst(gds.txt)}`);
+  if(gds) funcional.push(`el tamizaje del estado de ánimo fue interpretado como ${minusculaInicialInforme(gds.txt)}`);
+
+  if(funcional.length){
+    parrafos.push(`La integración de los resultados funcionales muestra que ${unirNaturalInforme(funcional)}.`);
   }
 
-  if(funcFrases.length) parrafos.push(`Desde el punto de vista funcional, ${joinNatural(funcFrases)}.`);
-
-  /* ============ 3. Hallazgos musculoesqueléticos (integrados, sin duplicar) + resumen fotográfico ============ */
-  const meFrases=[];
-  if(p.alteraciones_posturales) meFrases.push(`alteraciones posturales (${lowerFirst(clean(p.alteraciones_posturales))})`);
-  if(p.edema) meFrases.push(`edema ${lowerFirst(clean(p.edema))}`);
-  if(p.deformidades) meFrases.push(`deformidades articulares (${lowerFirst(clean(p.deformidades))})`);
-  if(p.alteraciones_marcha) meFrases.push(`un patrón de marcha alterado (${lowerFirst(clean(p.alteraciones_marcha))})`);
-  if(p.limitaciones_funcionales) meFrases.push(`limitaciones funcionales relevantes (${lowerFirst(clean(p.limitaciones_funcionales))})`);
-  if(p.ayudas_tecnicas) meFrases.push(lowerFirst(clean(p.ayudas_tecnicas)));
-
-  let parrafoME = meFrases.length ? `En la exploración musculoesquelética se observan ${joinNatural(meFrases)}.` : '';
-  if(p.observaciones_clinicas) parrafoME += (parrafoME?' ':'')+clean(p.observaciones_clinicas)+'.';
-
-  const fotos=(a.registroFotografico||[]).map(foto=>foto.descripcion&&foto.descripcion.trim()).filter(Boolean);
-  if(fotos.length){
-    parrafoME += (parrafoME?' ':'')+`El registro fotográfico corrobora estos hallazgos, mostrando de forma consistente las alteraciones posturales y de control motor descritas durante la sesión de valoración.`;
+  const musculoesqueletico=[];
+  if(p.alteraciones_posturales) musculoesqueletico.push(`alteraciones posturales descritas como ${minusculaInicialInforme(p.alteraciones_posturales)}`);
+  if(p.edema) musculoesqueletico.push(`edema descrito como ${minusculaInicialInforme(p.edema)}`);
+  if(p.deformidades) musculoesqueletico.push(`deformidades registradas como ${minusculaInicialInforme(p.deformidades)}`);
+  if(p.alteraciones_marcha) musculoesqueletico.push(`alteraciones de la marcha descritas como ${minusculaInicialInforme(p.alteraciones_marcha)}`);
+  if(p.limitaciones_funcionales) musculoesqueletico.push(`limitaciones funcionales descritas como ${minusculaInicialInforme(p.limitaciones_funcionales)}`);
+  if(p.ayudas_tecnicas) musculoesqueletico.push(`uso de ayudas técnicas registrado como ${minusculaInicialInforme(p.ayudas_tecnicas)}`);
+  if(musculoesqueletico.length){
+    parrafos.push(`En el componente musculoesquelético y postural se documentan ${unirNaturalInforme(musculoesqueletico)}.`);
   }
-  if(parrafoME) parrafos.push(parrafoME);
 
-  /* ============ 4. Estado nutricional y metabólico (interpretación breve, no cálculos) ============ */
-  let parrafoNutr='';
-  if(n.mnaTxt && n.mnaTxt!=='Estado nutricional normal'){
-    parrafoNutr = `El tamizaje nutricional confirma ${lowerFirst(n.mnaTxt)}`;
-    if(n.imcCat) parrafoNutr += `, hallazgo que contrasta con un IMC clasificado como ${lowerFirst(n.imcCat)} y que debe interpretarse considerando la composición corporal más que el peso global`;
-    if(p.perdida_peso && p.perdida_peso.startsWith('Sí')){
-      parrafoNutr += `, en concordancia con la pérdida de peso ${p.perdida_peso.includes('involuntaria')?'involuntaria':'reportada'} referida por ${nounPaciente}${p.perdida_peso_detalle?` (${clean(p.perdida_peso_detalle)})`:''}`;
-    }
-    parrafoNutr += '. Este hallazgo amerita manejo interdisciplinario con nutrición clínica dentro del plan de rehabilitación.';
+  const metabolico=[];
+  if(n.mnaTxt) metabolico.push(`el estado nutricional fue clasificado como ${minusculaInicialInforme(n.mnaTxt)}`);
+  if(n.imcCat) metabolico.push(`el IMC correspondió a ${minusculaInicialInforme(n.imcCat)}`);
+  if(bal.txt) metabolico.push(`el balance energético fue interpretado como ${minusculaInicialInforme(bal.txt)}`);
+  if(metabolico.length){
+    parrafos.push(`En el componente nutricional y metabólico, ${unirNaturalInforme(metabolico)}. Estos resultados deben considerarse para ajustar la carga de ejercicio y apoyar la preservación de la masa muscular.`);
   }
-  if(bal.txt && bal.txt.includes('Déficit')){
-    parrafoNutr += (parrafoNutr?' ':'')+'Se identifica además un balance energético deficitario respecto al gasto estimado, por lo que conviene vigilar el aporte calórico durante el proceso de rehabilitación para evitar catabolismo muscular.';
-  }
-  if(parrafoNutr) parrafos.push(parrafoNutr);
 
-  /* ============ 5. Conclusión fisioterapéutica (enfoque general, sin repetir el detalle del plan) ============ */
   const prioridades=[];
-  if(riesgoAltoCaidas||riesgoModeradoCaidas) prioridades.push('la seguridad y la prevención de caídas');
-  if(barthel||lawton) prioridades.push('la recuperación de la independencia en las actividades de la vida diaria');
-  if(riesgoSarcopenia) prioridades.push('el fortalecimiento neuromuscular');
-  if(f.txt==='Frágil'||f.txt==='Prefrágil') prioridades.push('un abordaje multicomponente frente a la fragilidad');
-
-  let conclusion = `En conjunto, el cuadro corresponde a ${sexo==='mujer'?'una paciente':(sexo==='hombre'?'un paciente':'una persona')} con limitación funcional de origen musculoesquelético`;
-  if(riesgoAltoCaidas||riesgoModeradoCaidas) conclusion += ' y alteración relevante del equilibrio';
-  conclusion += `. El abordaje fisioterapéutico debe orientarse de manera prioritaria a ${joinNatural(prioridades.length?prioridades:['la recuperación funcional global'])}`;
-  if(parrafoNutr) conclusion += ', en coordinación con nutrición clínica';
-  conclusion += ', según se detalla en el plan de intervención propuesto a continuación.';
-  parrafos.push(conclusion);
+  if(riesgoAlto||riesgoModerado) prioridades.push('prevención de caídas y entrenamiento del equilibrio');
+  if(barthel||lawton) prioridades.push('mejora de la independencia funcional');
+  if(riesgoSarcopenia) prioridades.push('fortalecimiento muscular progresivo');
+  if(f.txt==='Frágil'||f.txt==='Prefrágil') prioridades.push('abordaje multicomponente de la fragilidad');
+  if(n.mnaTxt&&n.mnaTxt!=='Estado nutricional normal') prioridades.push('coordinación con nutrición clínica');
+  parrafos.push(`En conjunto, la intervención debe priorizar ${unirNaturalInforme(prioridades.length?prioridades:['mantenimiento y recuperación de la capacidad funcional global'])}, con progresión individualizada y reevaluación periódica.`);
 
   return parrafos.filter(Boolean).join('\n\n');
 }
+
 function buildConclusionesHTML(rec){
-  const p = rec.paciente||{}, n = rec.nutricion||{}, d = rec.dinamometria||{}, f = rec.fragilidad||{}, bal = rec.balance||{};
-  let lines = [];
-  lines.push(`Paciente de ${p.edad||'—'} años, IMC ${n.imc?n.imc.toFixed(1):'—'} (${n.imcCat||'sin calcular'}), con clasificación de fragilidad "${f.txt||'pendiente de evaluar'}".`);
-  if(d.dinapenia) lines.push('Se identifica dinapenia (fuerza de agarre reducida), lo que sugiere riesgo de sarcopenia; se recomienda incorporar entrenamiento de fuerza progresivo (2-3 sesiones/semana) con ejercicios multiarticulares y resistencia progresiva.');
-  if(n.mnaTxt && n.mnaTxt!=='Estado nutricional normal') lines.push('El tamizaje nutricional MNA-SF sugiere riesgo nutricional; se recomienda interconsulta con nutrición clínica y refuerzo del aporte proteico distribuido en el día.');
-  if(f.txt==='Frágil'||f.txt==='Prefrágil') lines.push('El fenotipo de fragilidad indica la necesidad de un plan fisioterapéutico multicomponente: fuerza, equilibrio, marcha y resistencia aeróbica de baja-moderada intensidad, con progresión supervisada.');
-  if(bal.txt && bal.txt.includes('Déficit')) lines.push('Existe un déficit calórico relativo al gasto estimado; coordinar con nutrición para evitar catabolismo muscular durante el proceso de rehabilitación.');
-  lines.push('Se sugiere reevaluación de escalas geriátricas y parámetros antropométricos en 4-6 semanas para monitorizar respuesta a la intervención.');
-  return lines.map(l=>'• '+l).join('\n');
+  const n=rec.nutricion||{}, d=rec.dinamometria||{}, f=rec.fragilidad||{}, bal=rec.balance||{};
+  const conclusiones=[];
+  const resumen=[];
+  if(tieneValorInforme(n.imc)) resumen.push(`un IMC de ${Number(n.imc).toFixed(1)} kg/m² clasificado como ${minusculaInicialInforme(n.imcCat||'sin clasificación')}`);
+  if(f.txt) resumen.push(`una condición de fragilidad clasificada como ${minusculaInicialInforme(f.txt)}`);
+  if(tieneValorInforme(d.fuerza)) resumen.push(`una fuerza de agarre de ${d.fuerza} kg interpretada como ${minusculaInicialInforme(d.txt||'resultado registrado')}`);
+  if(resumen.length) conclusiones.push(`La valoración integral permitió identificar ${unirNaturalInforme(resumen)}.`);
+  if(d.dinapenia) conclusiones.push('La fuerza de agarre reducida orienta a incorporar entrenamiento de fuerza progresivo, con ejercicios multiarticulares y control de la respuesta funcional.');
+  if(n.mnaTxt&&n.mnaTxt!=='Estado nutricional normal') conclusiones.push('El resultado del tamizaje nutricional requiere seguimiento e integración con nutrición clínica para favorecer el aporte proteico y energético durante la rehabilitación.');
+  if(f.txt==='Frágil'||f.txt==='Prefrágil') conclusiones.push('La clasificación de fragilidad respalda un programa multicomponente que combine fuerza, equilibrio, marcha y resistencia aeróbica con progresión supervisada.');
+  if(bal.txt&&bal.txt.includes('Déficit')) conclusiones.push('El déficit energético estimado debe considerarse al ajustar la intensidad del ejercicio para reducir el riesgo de catabolismo muscular.');
+  conclusiones.push('Se recomienda reevaluar las escalas geriátricas y los parámetros funcionales en un periodo de cuatro a seis semanas para ajustar el plan según la evolución observada.');
+  return conclusiones.join('\n\n');
 }
+
 
 /* ------------------------------------------------------------
    Plan de Intervención Fisioterapéutica — generado dinámicamente
@@ -3432,25 +3365,16 @@ function generarPlanIntervencion(){
   return buildPlanIntervencionHTML(recordDesdeState());
 }
 function buildPlanIntervencionHTML(rec){
-  const plan = evaluarPlanIntervencion(rec);
-  const li = arr => arr.map(x=>`<li style="margin-bottom:4px;">${x}</li>`).join('');
-  return `
-    <div style="font-size:14px;line-height:1.7;">
-      <h4 style="margin:0 0 4px;font-size:15px;color:var(--ink);">Objetivos fisioterapéuticos</h4>
-      <ul style="margin:0 0 14px 18px;padding:0;">${li(plan.objetivos)}</ul>
-
-      <h4 style="margin:0 0 4px;font-size:15px;color:var(--ink);">Intervenciones propuestas</h4>
-      <ul style="margin:0 0 14px 18px;padding:0;">${li(plan.intervenciones)}</ul>
-
-      <table class="report" style="margin-bottom:14px;">
-        <tr><th>Frecuencia sugerida</th><td>${plan.frecuencia}</td></tr>
-        <tr><th>Duración estimada</th><td>${plan.duracion}</td></tr>
-      </table>
-
-      <h4 style="margin:0 0 4px;font-size:15px;color:var(--ink);">Recomendaciones fisioterapéuticas</h4>
-      <ul style="margin:0 0 0 18px;padding:0;">${li(plan.recomendaciones)}</ul>
-    </div>
-  `;
+  const plan=evaluarPlanIntervencion(rec);
+  const parrafos=[];
+  const objetivos=listaComoOracionInforme(plan.objetivos,'Los objetivos fisioterapéuticos propuestos son ');
+  const intervenciones=listaComoOracionInforme(plan.intervenciones,'Las intervenciones planteadas comprenden ');
+  const recomendaciones=listaComoOracionInforme(plan.recomendaciones,'Las recomendaciones complementarias incluyen ');
+  if(objetivos) parrafos.push(objetivos);
+  if(intervenciones) parrafos.push(intervenciones);
+  parrafos.push(`La frecuencia sugerida es ${minusculaInicialInforme(plan.frecuencia)} La duración estimada es ${minusculaInicialInforme(plan.duracion)}`);
+  if(recomendaciones) parrafos.push(recomendaciones);
+  return `<div style="font-size:14px;line-height:1.75;">${parrafos.map(parrafo=>`<p style="margin:0 0 12px;text-align:justify;">${escapeHtml(parrafo)}</p>`).join('')}</div>`;
 }
 
 function generarAnexosHTML(){
@@ -3584,7 +3508,6 @@ async function generarPDFClinico(){
     doc.text('Informe de Evaluación Fisioterapéutica Geriátrica', MARGIN+19, 20.5);
     doc.setFontSize(8.3);
     doc.text('Generado: '+fechaHoy, PAGE_W-MARGIN, 15.5, {align:'right'});
-    if(p) doc.text(p.nombre, PAGE_W-MARGIN, 20.5, {align:'right'});
     doc.setDrawColor(...COLOR.line); doc.setLineWidth(0.4);
     doc.line(MARGIN, 26, PAGE_W-MARGIN, 26);
   }
@@ -3962,270 +3885,61 @@ async function generarPDFClinico(){
   let y = HEAD_BOTTOM + 8;
 
   doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(...COLOR.ink);
-  doc.text('Informe de Valoración Integral Geriátrica', MARGIN, y);
+  doc.text('Informe fisioterapéutico narrativo', MARGIN, y);
   y += 7;
   doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(...COLOR.inkSoft);
-  doc.text(`Paciente: ${p.nombre}   ·   Código: ${p.codigo||'—'}   ·   Fecha de valoración: ${p.fecha||'—'}`, MARGIN, y);
+  doc.text('Síntesis de los resultados obtenidos en la Valoración Integral Geriátrica.', MARGIN, y);
   y += 10;
 
-  // 1. Datos del evaluador
-  y = sectionWithTable(y, 'Datos del evaluador', [
-    ['Nombre del fisioterapeuta', p.eval_nombre||'—'],
-    ['Institución o centro de atención', p.eval_institucion||'—'],
-    ['Fecha de evaluación', p.fecha||'—'],
-  ]);
+  const seccionesNarrativas = generarSeccionesInformeNarrativo(recordDesdeState());
+  const fotosNarrativas=normalizarAnexosFotograficos(state.anexos).registroFotografico;
+  for(const seccion of seccionesNarrativas){
+    const cuerpo=(seccion.parrafos||[]).join('\n\n').trim();
+    if(!cuerpo) continue;
 
-  // 1b. Datos del paciente
-  y = sectionWithTable(y, 'Datos del paciente', [
-    ['Código del paciente', p.codigo||'—'],
-    ['Nombre', p.nombre],
-    ['Edad / Sexo', `${p.edad} años · ${p.sexo==='F'?'Femenino':'Masculino'}`],
-    ['Fecha de nacimiento', p.fnac||'—'],
-    ['Número de cédula', p.cedula||'—'],
-    ['Estado civil', p.estado_civil||'—'],
-    ['Ocupación', p.ocupacion||'—'],
-    ['Dirección', p.direccion||'—'],
-    ['Teléfono', p.telefono||'—'],
-  ]);
-
-  // 1c. Datos del cuidador
-  y = sectionWithTable(y, 'Datos del cuidador', [
-    ['¿Requiere cuidador?', p.requiere_cuidador||'No'],
-    ['Nombre del cuidador', p.cuidador_nombre||'—'],
-    ['Parentesco', p.cuidador_parentesco||'—'],
-    ['Teléfono', p.cuidador_telefono||'—'],
-  ]);
-
-  // 1d. Datos antropométricos
-  y = sectionWithTable(y, 'Datos antropométricos', [
-    ['Peso / Talla', `${p.peso||'—'} kg / ${p.talla||'—'} cm`],
-    ['IMC', p.imc? p.imc.toFixed(1)+' kg/m² — '+p.imcCat : 'No calculado'],
-    ['Circunferencia de pantorrilla', p.circ_pantorrilla? p.circ_pantorrilla+' cm':'—'],
-    ['Circunferencia braquial', p.circ_braquial? p.circ_braquial+' cm':'—'],
-    ['Peso habitual', p.peso_habitual? p.peso_habitual+' kg':'—'],
-    ['Peso ideal', p.peso_ideal? p.peso_ideal+' kg':'—'],
-    ['Pérdida de peso reciente', (p.perdida_peso||'No')+(p.perdida_peso_detalle?' — '+p.perdida_peso_detalle:'')],
-    ['Presión arterial', p.pa||'—'],
-    ['Frecuencia cardíaca', p.fc? p.fc+' lpm':'—'],
-    ['Saturación O₂', p.spo2? p.spo2+' %':'—'],
-    ['Consentimiento informado', p.consentimiento?'Otorgado':'No registrado'],
-  ]);
-
-  // 1e. Historia Clínica
-  y = sectionWithTable(y, 'Historia Clínica', [
-    ['Diagnóstico médico', p.diagnostico_medico||'—'],
-    ['Motivo de consulta', p.motivo||'—'],
-    ['Diagnóstico fisioterapéutico', p.diagnostico||'—'],
-    ['Antecedentes personales', p.antecedentes_personales||'—'],
-    ['Antecedentes patológicos', p.antecedentes||'—'],
-    ['Antecedentes patológicos familiares', p.antecedentes_familiares||'—'],
-    ['Antecedentes patológicos quirúrgicos', p.antecedentes_quirurgicos||'—'],
-    ['Medicación actual', p.medicacion||'—'],
-  ]);
-
-  y = sectionWithTable(y, 'Alteraciones clínicas', [
-    ['Alteraciones posturales', p.alteraciones_posturales||'—'],
-    ['Edema', p.edema||'—'],
-    ['Deformidades', p.deformidades||'—'],
-    ['Ayudas técnicas', p.ayudas_tecnicas||'—'],
-    ['Alteraciones de la marcha', p.alteraciones_marcha||'—'],
-    ['Limitaciones funcionales', p.limitaciones_funcionales||'—'],
-    ['Observaciones clínicas', p.observaciones_clinicas||'—'],
-  ]);
-
-  // 2. Escalas geriátricas (tabla con encabezado propio: se reserva algo más de
-  // espacio junto al título para que encabezado de tabla + primera fila no queden solos)
-  y = sectionTitle(y, 'Resultados de escalas geriátricas', 22);
-  const escalaRows = SCALES.map(sc=>{
-    const r = state.escalas[sc.id];
-    if(!r) return [sc.name, 'No evaluado', '—', 'none'];
-    const [txt, cls] = sc.interpret(r.total);
-    return [sc.name, r.total+(sc.max?('/'+sc.max):''), txt, cls];
-  });
-  doc.autoTable({
-    startY:y, margin:{left:MARGIN, right:MARGIN, top:HEAD_BOTTOM+4, bottom:20},
-    head:[['Escala / Test','Resultado','Interpretación']],
-    body: escalaRows.map(r=>[r[0],r[1],r[2]]),
-    theme:'grid',
-    styles:{font:'helvetica', fontSize:8.6, textColor:COLOR.ink, lineColor:COLOR.line, lineWidth:0.2, cellPadding:2.4},
-    headStyles:{fillColor:COLOR.teal, textColor:255, fontStyle:'bold', fontSize:9},
-    columnStyles:{0:{cellWidth:78}, 1:{cellWidth:26}, 2:{cellWidth:CONTENT_W-78-26}},
-    didParseCell:(data)=>{
-      if(data.section==='body' && data.column.index===2){
-        const cls = escalaRows[data.row.index][3];
-        if(cls==='risk') data.cell.styles.textColor = COLOR.coral;
-        else if(cls==='mid') data.cell.styles.textColor = COLOR.amber;
-        else if(cls==='good') data.cell.styles.textColor = COLOR.green;
+    if(seccion.titulo==='Hallazgos del registro fotográfico' && fotosNarrativas.length){
+      const dimensiones=await Promise.all(fotosNarrativas.map(foto=>foto.dataUrl?loadImageDims(foto.dataUrl):Promise.resolve(null)));
+      const calcularBloqueFoto=(index)=>{
+        const dims=dimensiones[index];
+        const descripcion=seccion.parrafos[index]||'Sin hallazgos fotográficos redactados.';
+        const descH=estimateParagraphsHeight(descripcion,CONTENT_W-2,9.3,4.6);
+        let imgH=0;
+        if(dims){
+          imgH=CONTENT_W*(dims.h/dims.w);
+          if(imgH>90) imgH=90;
+        }
+        return 7+(dims?imgH+5:0)+descH+7;
+      };
+      y=sectionTitle(y,seccion.titulo,Math.min(calcularBloqueFoto(0),60));
+      for(let index=0;index<fotosNarrativas.length;index++){
+        const foto=fotosNarrativas[index];
+        const dims=dimensiones[index];
+        const descripcion=seccion.parrafos[index]||'Sin hallazgos fotográficos redactados.';
+        const bloqueH=calcularBloqueFoto(index);
+        y=checkBreak(y,Math.min(bloqueH,FOOT_TOP-HEAD_BOTTOM-6));
+        doc.setFont('helvetica','bold'); doc.setFontSize(9.8); doc.setTextColor(...COLOR.tealDeep);
+        doc.text(foto.titulo||`Registro fotográfico ${index+1}`,MARGIN,y);
+        y+=6;
+        if(dims&&foto.dataUrl){
+          let imgW=CONTENT_W;
+          let imgH=imgW*(dims.h/dims.w);
+          if(imgH>90){imgH=90;imgW=imgH*(dims.w/dims.h);}
+          const x=MARGIN+(CONTENT_W-imgW)/2;
+          const formato=(foto.tipo&&foto.tipo.includes('png'))?'PNG':'JPEG';
+          doc.addImage(foto.dataUrl,formato,x,y,imgW,imgH);
+          y+=imgH+5;
+        }
+        doc.setFont('helvetica','normal'); doc.setFontSize(9.3); doc.setTextColor(...COLOR.ink);
+        y=drawFlowingParagraphs(y,descripcion,4.6,MARGIN+2)+6;
       }
-    },
-    didDrawPage: ()=>{ drawHeader(); }
-  });
-  y = doc.lastAutoTable.finalY + 9;
-
-  // 3. Estado nutricional y metabólico
-  y = sectionWithTable(y, 'Estado nutricional y metabólico', [
-    ['IMC', n.imc? n.imc.toFixed(1)+' kg/m² — '+n.imcCat : 'No calculado'],
-    ['Riesgo nutricional (MNA-SF)', n.mna!==undefined? n.mna+'/14 — '+n.mnaTxt : 'No calculado'],
-    ['Proteína recomendada', n.proteina? n.proteina.toFixed(0)+' g/día' : 'No calculado'],
-    ['Requerimiento calórico', n.calorias? n.calorias.toFixed(0)+' kcal/día' : 'No calculado'],
-    ['Masa muscular estimada', n.smm? n.smm.toFixed(1)+' kg (SMI '+n.smi.toFixed(2)+' kg/m²)' : 'No calculado'],
-    ['Tasa Metabólica Basal', m.bmr? m.bmr.toFixed(0)+' kcal/día' : 'No calculado'],
-    ['Gasto Energético Total', m.get? m.get.toFixed(0)+' kcal/día' : 'No calculado'],
-    ['Hidratación recomendada', h.litros? h.litros.toFixed(2)+' L/día' : 'No calculado'],
-    ['Balance energético', bal.pct? bal.pct.toFixed(0)+'% del GET ('+(bal.diff>=0?'+':'')+bal.diff.toFixed(0)+' kcal) — '+bal.txt : 'No calculado'],
-  ]);
-
-  // 4. Fuerza, fragilidad y capacidad funcional
-  y = sectionWithTable(y, 'Fuerza, fragilidad y capacidad funcional', [
-    ['Fuerza de agarre', d.fuerza? d.fuerza+' kg — '+d.txt : 'No calculado'],
-    ['Clasificación de fragilidad', f.txt? f.total+'/5 criterios — '+f.txt : 'No calculado'],
-    ['METs de la actividad prescrita', met.valor? (met.actividad||'Actividad seleccionada')+' · '+met.valor+' METs ('+met.kcal.toFixed(0)+' kcal/sesión)' : 'No calculado'],
-  ]);
-
-  // 5. Banderas clínicas. Regla 6: título + lista se tratan como un único
-  // bloque — se reserva su alto TOTAL antes del título para que, si cabe
-  // entera en una página, la lista completa se traslade junto con el título.
-  const flags = [];
-  if(n.imcCat && (n.imcCat==='Bajo peso'||n.imcCat==='Obesidad')) flags.push('IMC alterado');
-  if(n.mnaTxt && n.mnaTxt!=='Estado nutricional normal') flags.push('Riesgo nutricional');
-  if(d.dinapenia) flags.push('Dinapenia');
-  if(f.txt && f.txt!=='Robusto') flags.push('Fragilidad: '+f.txt);
-  if(bal.txt && bal.txt!=='Balance energético adecuado') flags.push('Desbalance energético');
-  const flagLines = flags.length ? flags.map(fl=>'⚠ '+fl) : ['✓ Sin banderas de alarma relevantes'];
-  const flagsHeight = estimateLinesHeight(flagLines, CONTENT_W-2, 9.5, 6, 0);
-  y = ensureBlockFitsOrBreak(y, SECTION_TITLE_H + flagsHeight);
-  y = sectionTitle(y, 'Banderas clínicas identificadas', flagsHeight);
-  y = drawLines(y, flagLines, CONTENT_W-2, MARGIN, 6, 0, ()=>{
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
-    doc.setTextColor(...(flags.length?COLOR.coral:COLOR.green));
-  });
-  y += 3;
-
-  // Escalas sugeridas según patología
-  y = sectionTitle(y, 'Escalas sugeridas según la patología');
-  const textoDiag = normalizarTextoClinico(`${p.diagnostico_medico||''} ${p.diagnostico||''}`);
-  const sugeridasPdf = [];
-  REGLAS_ESCALAS_POR_PATOLOGIA.forEach(r=>{
-    if(r.claves.some(k=>textoDiag.includes(normalizarTextoClinico(k)))){
-      r.escalas.forEach(e=>{if(!sugeridasPdf.includes(e)) sugeridasPdf.push(e);});
+      continue;
     }
-  });
-  y = planTextBlock(y, '', sugeridasPdf.length?sugeridasPdf.join(' · '):'No se identificaron sugerencias automáticas para el diagnóstico registrado.');
 
-  // 7. Plan de Intervención Fisioterapéutica (generado dinámicamente a partir de escalas,
-  // riesgos detectados, dinamometría, fragilidad, estado nutricional, balance energético,
-  // METs e hidratación del paciente)
-  const plan = evaluarPlanIntervencion(recordDesdeState());
-  // Se reserva junto al título el alto de su primer subtítulo + primera viñeta
-  // ("Objetivos fisioterapéuticos"), para que el título nunca quede huérfano.
-  const primerObjetivo = (plan.objetivos&&plan.objetivos.length) ? plan.objetivos[0] : '';
-  doc.setFont('helvetica','normal'); doc.setFontSize(9.3);
-  const primerObjetivoWrap = doc.splitTextToSize('•  '+primerObjetivo, CONTENT_W-2);
-  y = sectionTitle(y, 'Plan de Intervención Fisioterapéutica', 5 + 5 + primerObjetivoWrap.length*4.6 + 2);
-  y = planBulletBlock(y, 'Objetivos fisioterapéuticos', plan.objetivos);
-  y = planBulletBlock(y, 'Intervenciones propuestas', plan.intervenciones);
-  y = planTextBlock(y, 'Frecuencia sugerida', plan.frecuencia);
-  y = planTextBlock(y, 'Duración estimada', plan.duracion);
-  y = planBulletBlock(y, 'Recomendaciones fisioterapéuticas', plan.recomendaciones);
-
-  // 7. Conclusiones y recomendaciones fisioterapéuticas. Regla 6: se calcula
-  // el alto TOTAL del bloque (título + todas las viñetas) antes de imprimir
-  // nada — si cabe entera en una página, la lista completa se traslada junto
-  // con el título en vez de partirse dejando unas viñetas arriba y otras abajo.
-  const conclusionLines = buildConclusionesHTML(recordDesdeState()).split('\n').map(l=>l.replace(/^•\s*/,''));
-  const conclusionesHeight = estimateBulletsHeight(conclusionLines, CONTENT_W, 9.5, 5, 3);
-  y = ensureBlockFitsOrBreak(y, SECTION_TITLE_H + conclusionesHeight);
-  y = sectionTitle(y, 'Conclusiones y recomendaciones fisioterapéuticas', conclusionesHeight);
-  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...COLOR.ink);
-  y = drawBulletItems(y, conclusionLines, CONTENT_W, MARGIN, 5, 3);
-
-  // 8. Registro fotográfico del paciente
-  const fotosPdf = normalizarAnexosFotograficos(state.anexos).registroFotografico;
-  // Precarga las dimensiones de TODAS las fotos de una vez (en vez de dentro del
-  // bucle): permite estimar con precisión el alto real del primer bloque
-  // fotográfico y reservar ese espacio junto al título "REGISTRO FOTOGRÁFICO"
-  // para que el título nunca quede huérfano si la primera foto no cabe.
-  const fotosDims = await Promise.all(fotosPdf.map(f=> f.dataUrl ? loadImageDims(f.dataUrl) : Promise.resolve(null)));
-  function fotoBlockHeight(foto, dims){
-    const descripcion = foto.descripcion && foto.descripcion.trim() ? foto.descripcion.trim() : 'Sin descripción clínica registrada.';
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
-    const descLines = doc.splitTextToSize(descripcion, CONTENT_W);
-    let imgH = 0;
-    if(dims){
-      imgH = CONTENT_W*(dims.h/dims.w);
-      if(imgH>105) imgH = 105;
-    }
-    return 8 + (dims?imgH+5:7) + 7 + (descLines.length*4.6) + 8;
+    const bodyHeight=estimateParagraphsHeight(cuerpo, CONTENT_W-2, 9.3, 4.6);
+    y=ensureBlockFitsOrBreak(y, SECTION_TITLE_H + Math.min(bodyHeight, 28));
+    y=sectionTitle(y, seccion.titulo, Math.min(bodyHeight, 28));
+    y=planTextBlock(y, '', cuerpo);
   }
-  const primerFotoFollow = fotosPdf.length ? fotoBlockHeight(fotosPdf[0], fotosDims[0]) : 8;
-  y = sectionTitle(y+2, 'REGISTRO FOTOGRÁFICO', primerFotoFollow);
-  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...COLOR.inkSoft);
-  if(!fotosPdf.length){
-    doc.text('No se han registrado fotografías clínicas.', MARGIN, y);
-    y += 6;
-  } else {
-    for(let index=0; index<fotosPdf.length; index++){
-      const foto=fotosPdf[index];
-      const tituloFoto=foto.titulo||`Fotografía clínica ${index+1}`;
-      const descripcion=foto.descripcion&&foto.descripcion.trim()
-        ? foto.descripcion.trim()
-        : 'Sin descripción clínica registrada.';
-      const descLines=doc.splitTextToSize(descripcion, CONTENT_W);
-      const dims=fotosDims[index];
-      let imgW=0, imgH=0;
-      if(dims){
-        imgW=CONTENT_W;
-        imgH=imgW*(dims.h/dims.w);
-        const maxImgH=105;
-        if(imgH>maxImgH){ imgH=maxImgH; imgW=imgH*(dims.w/dims.h); }
-      }
-      // Título + imagen + descripción de cada fotografía se tratan como un único
-      // bloque indivisible: si no caben completos, se saltan de página juntos
-      // (con encabezado) ANTES de dibujar nada, evitando fotos o títulos cortados.
-      const blockH=8+(dims?imgH+5:7)+7+(descLines.length*4.6)+8;
-      y = checkBreak(y, blockH);
-
-      doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(...COLOR.tealDeep);
-      doc.text(tituloFoto, MARGIN, y);
-      y+=6;
-
-      if(dims){
-        const x=MARGIN+(CONTENT_W-imgW)/2;
-        const format=(foto.tipo&&foto.tipo.includes('png'))?'PNG':'JPEG';
-        doc.addImage(foto.dataUrl, format, x, y, imgW, imgH);
-        y+=imgH+5;
-      }else{
-        doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(...COLOR.inkSoft);
-        doc.text('Imagen no adjuntada.', MARGIN, y);
-        y+=7;
-      }
-
-      doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(...COLOR.ink);
-      doc.text('Descripción clínica / Hallazgos posturales', MARGIN, y);
-      y+=5;
-      doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
-      doc.text(descLines, MARGIN, y);
-      y+=descLines.length*4.6+8;
-    }
-  }
-
-  // 9. Informe Final: apartado de cierre del documento. Contiene íntegramente,
-  // sin resumir ni modificar, el texto narrativo generado por el Análisis
-  // Clínico Fisioterapéutico (misma lógica de generación que antes, solo que
-  // ahora se dibuja al final del PDF como sección independiente). Se aplican
-  // las mismas reglas de paginación inteligente: se calcula la altura TOTAL
-  // del bloque (título + todo el texto, respetando párrafos) y se decide con
-  // ensureBlockFitsOrBreak() si conviene saltar de página ANTES de empezar,
-  // para que el título nunca quede huérfano ni el texto se corte a mitad de
-  // frase. Usa el mismo encabezado, pie de página, tipografía y márgenes que
-  // el resto del documento.
-  const informeFinalTexto = generarAnalisisClinico(recordDesdeState());
-  const informeFinalBodyHeight = estimateParagraphsHeight(informeFinalTexto, CONTENT_W-2, 9.3, 4.6);
-  y = ensureBlockFitsOrBreak(y+2, SECTION_TITLE_H + informeFinalBodyHeight);
-  doc.setFont('helvetica','normal'); doc.setFontSize(9.3);
-  const informeFinalWrap = doc.splitTextToSize(informeFinalTexto, CONTENT_W-2);
-  y = sectionTitle(y, 'INFORME FINAL', Math.min(informeFinalWrap.length,2)*4.6 + 2);
-  y = planTextBlock(y, '', informeFinalTexto);
 
   // Pie de página en todas las páginas
   const totalPages = doc.internal.getNumberOfPages();
@@ -4238,7 +3952,7 @@ async function generarPDFClinico(){
     doc.text(`Página ${i} / ${totalPages}`, PAGE_W-MARGIN, FOOT_TOP+7, {align:'right'});
   }
 
-  const nombreArchivo = 'Informe_VIG_' + (p.nombre||'paciente').trim().replace(/\s+/g,'_') + '.pdf';
+  const nombreArchivo = 'Informe_VIG_' + new Date().toISOString().slice(0,10) + '.pdf';
   doc.save(nombreArchivo);
 }
 
