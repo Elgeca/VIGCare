@@ -414,6 +414,20 @@
   .foto-registro-actions input[type="file"]{max-width:100%;}
   .foto-registro-report{page-break-inside:avoid;break-inside:avoid;margin-bottom:22px;}
   .foto-registro-report h4{margin:0 0 10px;font-size:14px;color:var(--teal-deep);}
+  .foto-ia-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 10px;}
+  button.ia-btn{background:linear-gradient(135deg,var(--violet-soft),var(--green-soft));border:1.5px solid var(--teal);padding:9px 16px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;color:var(--result-ink);font-family:var(--body);transition:all .18s var(--ease);}
+  button.ia-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 18px -10px rgba(15,23,42,.35);}
+  button.ia-btn:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none;}
+  .foto-ia-spinner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(15,23,42,.15);border-top-color:var(--teal-deep);display:inline-block;vertical-align:-2px;margin-right:7px;animation:foto-ia-spin .7s linear infinite;}
+  @keyframes foto-ia-spin{to{transform:rotate(360deg);}}
+  .foto-ia-status{font-size:12px;color:var(--ink-soft);line-height:1.5;}
+  .foto-ia-status.risk{color:var(--coral);}
+  .foto-ia-status.good{color:var(--green);}
+  .foto-ia-config{border:1.5px dashed var(--line);border-radius:12px;padding:14px 16px;margin-bottom:16px;background:var(--input-bg);}
+  .foto-ia-config summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--teal-deep);list-style:none;}
+  .foto-ia-config summary::-webkit-details-marker{display:none;}
+  .foto-ia-config summary:before{content:'⚙ ';}
+  .foto-ia-config[open] summary{margin-bottom:12px;}
   .foto-registro-report .descripcion-clinica{white-space:pre-line;line-height:1.65;font-size:13.5px;margin-top:12px;}
 
 </style>
@@ -859,9 +873,22 @@
       <div class="card noprint" style="margin-bottom:18px;">
         <h3>Registro Fotográfico del Paciente</h3>
         <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;line-height:1.55;">Adjunte una o varias fotografías clínicas. Cada imagen conserva su propia vista, descripción y orden dentro del expediente y del PDF.</p>
+        <details class="foto-ia-config">
+          <summary>Configuración de análisis con IA (opcional)</summary>
+          <div class="field" style="margin-bottom:10px;">
+            <label>Clave de API (Google Gemini)</label>
+            <input id="ia_api_key" type="password" placeholder="AIza..." oninput="guardarConfigIA()">
+            <div class="field-hint">Ya viene precargada con una clave configurada para este dispositivo. Puede reemplazarla o borrarla aquí si lo necesita — se guarda únicamente en este navegador (localStorage). No comparta este archivo con esta clave incluida.</div>
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label>Modelo</label>
+            <input id="ia_api_model" type="text" placeholder="gemini-3.6-flash" oninput="guardarConfigIA()">
+            <div class="field-hint">Cualquier modelo multimodal de la API de Gemini (por ejemplo gemini-3.6-flash o gemini-3.5-flash-lite). Por defecto: gemini-3.6-flash.</div>
+          </div>
+        </details>
         <div id="registroFotograficoContainer"></div>
         <button class="ghost" type="button" onclick="agregarRegistroFotografico()">＋ Agregar fotografía clínica</button>
-        <p class="cite">La descripción es registrada manualmente por el fisioterapeuta. La aplicación no analiza ni interpreta las fotografías.</p>
+        <p class="cite">La descripción puede registrarse manualmente por el fisioterapeuta o generarse como borrador mediante “✨ Analizar fotografía con IA” (descripción objetiva de lo observable, sin diagnósticos). En ambos casos, el texto es siempre editable y debe ser validado clínicamente por el fisioterapeuta antes de incorporarse al informe.</p>
       </div>
       <div class="noprint" style="margin-bottom:18px;display:flex;gap:10px;">
         <button class="primary" onclick="generarInforme()">Generar / actualizar informe</button>
@@ -2437,14 +2464,189 @@ function renderRegistroFotografico(){
           ? `<img src="${foto.dataUrl}" alt="${escapeAttr(foto.titulo||'Fotografía clínica')}">`
           : `<div class="foto-registro-placeholder">La vista previa aparecerá aquí inmediatamente después de seleccionar una imagen.</div>`}
       </div>
+      <div class="foto-ia-actions">
+        <button class="ia-btn" type="button" id="foto_ia_btn_${foto.id}" ${foto.dataUrl?'':'disabled'}
+          onclick="analizarFotografiaConIA('${foto.id}')">✨ Analizar fotografía con IA</button>
+        <span class="foto-ia-status" id="foto_ia_status_${foto.id}"></span>
+      </div>
       <div class="field">
         <label>Descripción clínica / Hallazgos posturales</label>
-        <textarea class="foto-descripcion" placeholder="Registre manualmente alteraciones posturales, desviaciones, asimetrías, marcha, alineación corporal, compensaciones y observaciones relevantes."
+        <textarea class="foto-descripcion" id="foto_descripcion_${foto.id}" placeholder="Registre manualmente alteraciones posturales, desviaciones, asimetrías, marcha, alineación corporal, compensaciones y observaciones relevantes, o use “✨ Analizar fotografía con IA” para generar un borrador editable."
           oninput="actualizarCampoRegistroFotografico('${foto.id}','descripcion',this.value)"
           onchange="guardarCampoRegistroFotografico('${foto.id}','descripcion',this.value)">${escapeHtml(foto.descripcion)}</textarea>
+        <div class="field-hint">El texto generado por IA es siempre un borrador editable: revíselo y ajústelo antes de guardar.</div>
       </div>
     </div>
   `).join('');
+}
+
+/* ============================================================
+   ANÁLISIS AUTOMÁTICO DE FOTOGRAFÍA CLÍNICA MEDIANTE IA
+   ------------------------------------------------------------
+   Usa un modelo multimodal (API de Google Gemini, compatible con
+   gemini-2.5-flash / gemini-2.5-flash-lite / gemini-2.5-pro con visión) SOLO para describir
+   objetivamente lo visible en la fotografía (postura, alineación,
+   simetría, apoyo, ayudas técnicas, etc.). El prompt prohíbe
+   explícitamente diagnósticos médicos o fisioterapéuticos. El
+   resultado se carga como borrador editable dentro del MISMO
+   textarea "Descripción clínica / Hallazgos posturales", usando
+   exactamente actualizarCampoRegistroFotografico /
+   guardarCampoRegistroFotografico — las mismas funciones que ya
+   usaba la edición manual — por lo que el flujo de generación del
+   informe y del PDF (que solo leen foto.descripcion) no cambia en
+   absoluto.
+   ============================================================ */
+const IA_CONFIG_KEY = 'vigcare_ia_config';
+// Clave precargada por defecto para uso personal en un único dispositivo
+// (solicitado explícitamente por el usuario). Sigue siendo editable/borrable
+// desde el panel "Configuración de análisis con IA": si el fisioterapeuta
+// guarda una clave distinta (o la deja vacía), esa queda por encima de este
+// valor por defecto. NO distribuir este archivo con esta clave incluida.
+const IA_DEFAULT_API_KEY = 'AQ.Ab8RN6K-51AOQBhCH7BUtf6q8JkWPgADbWDsnHqDb0dfq8KNaQ';
+const IA_DEFAULT_MODEL = 'gemini-3.6-flash';
+function cargarConfigIA(){
+  try{
+    const raw = localStorage.getItem(IA_CONFIG_KEY);
+    const guardado = raw ? JSON.parse(raw) : {};
+    return {
+      apiKey: guardado.apiKey || IA_DEFAULT_API_KEY,
+      modelo: guardado.modelo || IA_DEFAULT_MODEL
+    };
+  }catch(e){ return {apiKey:IA_DEFAULT_API_KEY, modelo:IA_DEFAULT_MODEL}; }
+}
+function guardarConfigIA(){
+  const apiKeyEl = document.getElementById('ia_api_key');
+  const modeloEl = document.getElementById('ia_api_model');
+  const config = {
+    apiKey: apiKeyEl ? apiKeyEl.value.trim() : '',
+    modelo: modeloEl ? modeloEl.value.trim() : ''
+  };
+  try{ localStorage.setItem(IA_CONFIG_KEY, JSON.stringify(config)); }catch(e){ /* si falla, la config solo dura la sesión actual */ }
+}
+function initConfigIA(){
+  const config = cargarConfigIA();
+  const apiKeyEl = document.getElementById('ia_api_key');
+  const modeloEl = document.getElementById('ia_api_model');
+  if(apiKeyEl) apiKeyEl.value = config.apiKey||'';
+  if(modeloEl) modeloEl.value = config.modelo||'';
+}
+
+// Prompt de sistema: define el rol, los límites clínicos estrictos (solo
+// descripción objetiva, nunca diagnóstico), el formato de salida exacto y el
+// marcador que debe usar el modelo cuando la imagen no permite un análisis
+// confiable, para que la app pueda detectarlo y mostrar el mensaje adecuado.
+const IA_PROMPT_SISTEMA = `Eres un asistente que describe ÚNICAMENTE lo objetivamente visible en una fotografía clínica de fisioterapia, como apoyo documental para un fisioterapeuta.
+REGLAS ESTRICTAS:
+- NO emitas diagnósticos médicos ni fisioterapéuticos.
+- NO afirmes enfermedades, dolor, espasticidad, fuerza muscular, rigidez, Parkinson, ACV, artrosis, fracturas ni alteraciones neurológicas, a menos que sean absolutamente visibles de forma inequívoca (por ejemplo, el uso de una férula, yeso, silla de ruedas o bastón).
+- Limítate a describir aspectos observables: postura, alineación corporal, simetría, apoyo, base de sustentación, posición de cabeza, hombros, tronco, pelvis, rodillas, pies, uso de ayudas técnicas, compensaciones visibles, patrón general de marcha (solo si es evidente en la imagen) y distribución aparente del peso.
+- Si la imagen no permite un análisis confiable (mala iluminación, desenfoque, poca visibilidad del cuerpo, encuadre inadecuado, etc.), responde ÚNICAMENTE con el texto exacto: IMAGEN_NO_ANALIZABLE: seguido de una breve razón.
+- Si sí es analizable, responde EXCLUSIVAMENTE en español y con este formato exacto, sin añadir nada antes ni después:
+
+Hallazgos observados
+• [hallazgo observable 1]
+• [hallazgo observable 2]
+• [hallazgo observable 3]
+• [hallazgo observable 4]
+
+Observaciones
+[texto corto indicando únicamente lo observable, sin interpretaciones clínicas]
+
+Este análisis fue generado automáticamente mediante inteligencia artificial como apoyo al fisioterapeuta y debe ser validado clínicamente antes de incorporarse al informe.`;
+
+async function analizarFotografiaConIA(id){
+  const foto = obtenerRegistroFotografico().find(f=>f.id===id);
+  if(!foto || !foto.dataUrl){ alert('Primero adjunte una fotografía para poder analizarla.'); return; }
+
+  const config = cargarConfigIA();
+  const statusEl = document.getElementById('foto_ia_status_'+id);
+  const btnEl = document.getElementById('foto_ia_btn_'+id);
+
+  if(!config.apiKey){
+    if(statusEl){ statusEl.className='foto-ia-status risk'; statusEl.textContent='Configure primero una clave de API en "Configuración de análisis con IA (opcional)", arriba del registro fotográfico.'; }
+    return;
+  }
+
+  const modelo = config.modelo || 'gemini-2.5-flash';
+  if(btnEl) btnEl.disabled = true;
+  if(statusEl){
+    statusEl.className='foto-ia-status';
+    statusEl.innerHTML = '<span class="foto-ia-spinner"></span>Analizando fotografía con IA…';
+  }
+
+  try{
+    // La API de Gemini recibe la imagen como inline_data en base64 puro (sin
+    // el prefijo "data:image/...;base64,"), junto con su mime type.
+    const base64Data = (foto.dataUrl.split(',')[1]) || '';
+    const mimeType = foto.tipo || 'image/jpeg';
+
+    const respuesta = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(modelo)+':generateContent',
+      {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', 'x-goog-api-key': config.apiKey },
+        body: JSON.stringify({
+          system_instruction: { parts:[{ text: IA_PROMPT_SISTEMA }] },
+          contents: [{
+            role:'user',
+            parts:[
+              { text:'Describe objetivamente lo visible en esta fotografía clínica de fisioterapia, siguiendo estrictamente las reglas indicadas.' },
+              { inline_data:{ mime_type: mimeType, data: base64Data } }
+            ]
+          }],
+          generationConfig:{
+            maxOutputTokens: 1500,
+            thinkingConfig:{ thinkingLevel:'minimal' }
+          }
+        })
+      }
+    );
+
+    if(!respuesta.ok){
+      let detalle = '';
+      try{ const err = await respuesta.json(); detalle = err&&err.error&&err.error.message ? ' — '+err.error.message : ''; }catch(e){}
+      throw new Error('la API respondió con un error (HTTP '+respuesta.status+')'+detalle);
+    }
+
+    const datos = await respuesta.json();
+    const candidato = datos&&datos.candidates&&datos.candidates[0];
+    const texto = candidato&&candidato.content&&candidato.content.parts&&candidato.content.parts[0]
+      ? (candidato.content.parts.map(p=>p.text||'').join('')).trim()
+      : '';
+
+    if(!texto){
+      const bloqueo = datos&&datos.promptFeedback&&datos.promptFeedback.blockReason;
+      throw new Error(bloqueo ? 'la imagen fue bloqueada por el modelo ('+bloqueo+')' : 'la IA no devolvió contenido analizable');
+    }
+
+    if(texto.startsWith('IMAGEN_NO_ANALIZABLE')){
+      const razon = texto.split(':').slice(1).join(':').trim();
+      if(statusEl){
+        statusEl.className='foto-ia-status risk';
+        statusEl.textContent = 'No fue posible realizar un análisis confiable de esta fotografía'+(razon?(': '+razon):' (mala iluminación, desenfoque o poca visibilidad).')+' Intente con otra imagen o redacte la descripción manualmente.';
+      }
+      return;
+    }
+
+    // Se reutilizan las mismas funciones que la edición manual del textarea,
+    // así el resultado queda como borrador editable y el flujo de guardado /
+    // generación del informe y del PDF permanece exactamente igual.
+    const textareaEl = document.getElementById('foto_descripcion_'+id);
+    if(textareaEl) textareaEl.value = texto;
+    guardarCampoRegistroFotografico(id, 'descripcion', texto);
+
+    if(statusEl){
+      statusEl.className='foto-ia-status good';
+      statusEl.textContent = 'Borrador generado por IA cargado en la descripción. Revíselo y edítelo antes de guardar el informe.';
+    }
+  }catch(e){
+    if(statusEl){
+      statusEl.className='foto-ia-status risk';
+      statusEl.textContent = 'No fue posible completar el análisis con IA ('+(e&&e.message?e.message:'error de conexión')+'). Puede reintentar o redactar la descripción manualmente.';
+    }
+  }finally{
+    if(btnEl) btnEl.disabled = false;
+  }
 }
 
 
@@ -3733,6 +3935,7 @@ toggleCuidadorFields();
 actualizarIMCAuto();
 iniciarNavegacion();
 initTema();
+initConfigIA();
 iniciarComprobacionActualizaciones();
 </script>
 </body>
