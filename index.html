@@ -3867,11 +3867,17 @@ async function generarPDFClinico(){
   // juntos a la página nueva. Solo cuando el texto por sí solo supera una página completa
   // (p. ej. el Análisis Clínico) se permite que fluya entre páginas, y drawFlowingParagraphs
   // se encarga de que ese reparto ocurra únicamente entre párrafos u oraciones completas.
-  function planTextBlock(y, titulo, texto){
+  function planTextBlock(y, titulo, texto, reservarBloqueCompleto=true){
     const lineH = 4.6;
     const width = CONTENT_W-2;
     const bodyHeight = estimateParagraphsHeight(texto, width, 9.3, lineH);
-    y = ensureBlockFitsOrBreak(y, (titulo?5:0) + bodyHeight);
+    // Cuando el título de sección ya reservó espacio para el primer párrafo,
+    // no se repite aquí el cálculo del bloque completo. Repetirlo después de
+    // dibujar el título podía enviar todo el cuerpo a la página siguiente y
+    // dejar el encabezado aislado con un gran espacio vacío.
+    if(reservarBloqueCompleto){
+      y = ensureBlockFitsOrBreak(y, (titulo?5:0) + bodyHeight);
+    }
     if(titulo){
       doc.setFont('helvetica','bold'); doc.setFontSize(9.8); doc.setTextColor(...COLOR.ink);
       doc.text(titulo, MARGIN, y); y += 5;
@@ -3936,9 +3942,14 @@ async function generarPDFClinico(){
     }
 
     const bodyHeight=estimateParagraphsHeight(cuerpo, CONTENT_W-2, 9.3, 4.6);
-    y=ensureBlockFitsOrBreak(y, SECTION_TITLE_H + Math.min(bodyHeight, 28));
-    y=sectionTitle(y, seccion.titulo, Math.min(bodyHeight, 28));
-    y=planTextBlock(y, '', cuerpo);
+    const primerParrafo=(seccion.parrafos||[]).find(parrafo=>String(parrafo||'').trim())||cuerpo;
+    const altoPrimerParrafo=estimateWrappedHeight(primerParrafo, CONTENT_W-2, 9.3, 4.6);
+    const maximoSeguimiento=FOOT_TOP-(HEAD_BOTTOM+4)-SECTION_TITLE_H;
+    // El título se imprime solo cuando también cabe su primer párrafo real.
+    // Después el cuerpo fluye desde esa misma página, sin volver a ejecutar
+    // una decisión de salto basada en la altura TOTAL de toda la sección.
+    y=sectionTitle(y, seccion.titulo, Math.min(altoPrimerParrafo, maximoSeguimiento));
+    y=planTextBlock(y, '', cuerpo, false);
   }
 
   // Pie de página en todas las páginas
