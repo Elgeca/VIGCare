@@ -888,7 +888,7 @@
         </details>
         <div id="registroFotograficoContainer"></div>
         <button class="ghost" type="button" onclick="agregarRegistroFotografico()">＋ Agregar fotografía clínica</button>
-        <p class="cite">La descripción puede registrarse manualmente por el fisioterapeuta o generarse como borrador mediante “✨ Analizar fotografía con IA” (descripción objetiva de lo observable, sin diagnósticos). En ambos casos, el texto es siempre editable y debe ser validado clínicamente por el fisioterapeuta antes de incorporarse al informe.</p>
+        <p class="cite">La descripción puede registrarse manualmente por el fisioterapeuta o generarse como borrador mediante “✨ Analizar fotografía con IA” (hallazgos posturales y biomecánicos visibles, sin diagnósticos). En ambos casos, el texto es siempre editable y debe ser validado clínicamente por el fisioterapeuta antes de incorporarse al informe.</p>
       </div>
       <div class="noprint" style="margin-bottom:18px;display:flex;gap:10px;">
         <button class="primary" onclick="generarInforme()">Generar / actualizar informe</button>
@@ -912,7 +912,7 @@
    detecte que hay contenido nuevo — ver iniciarComprobacionActualizaciones()
    más abajo. No es un dato de paciente, no toca PACIENTES_KEY.
    ============================================================ */
-const APP_VERSION = '2026.08.05-REGISTRO-FOTO-1';
+const APP_VERSION = '2026.08.06-REGISTRO-FOTO-1';
 
 /* ============================================================
    TEMA (claro / oscuro)
@@ -2535,22 +2535,41 @@ function initConfigIA(){
 // descripción objetiva, nunca diagnóstico), el formato de salida exacto y el
 // marcador que debe usar el modelo cuando la imagen no permite un análisis
 // confiable, para que la app pueda detectarlo y mostrar el mensaje adecuado.
-const IA_PROMPT_SISTEMA = `Eres un asistente que describe ÚNICAMENTE lo objetivamente visible en una fotografía clínica de fisioterapia, como apoyo documental para un fisioterapeuta.
+const IA_PROMPT_SISTEMA = `Actúa como asistente de DOCUMENTACIÓN FISIOTERAPÉUTICA para analizar una fotografía clínica.
+
+OBJETIVO PRINCIPAL:
+Identifica y redacta ÚNICAMENTE ALTERACIONES POSTURALES, BIOMECÁNICAS, DE ALINEACIÓN Y COMPENSACIONES QUE SEAN VISIBLES. NO narres la escena ni describas de forma general qué está haciendo la persona.
+
+ENFOQUE DE OBSERVACIÓN FISIOTERAPÉUTICA:
+- Cabeza y región cervical: inclinación, rotación o anteriorización aparente.
+- Cintura escapular: diferencia de altura, asimetría, protracción o posición aparente de hombros.
+- Tronco: flexión, extensión, inclinación lateral o rotación aparente.
+- Pelvis: oblicuidad o posición asimétrica, solamente cuando sea claramente visible.
+- Caderas, rodillas y pies: flexión, extensión, orientación, separación, alineación y apoyo aparente.
+- Simetría corporal, base de sustentación, apoyo manual externo, ayudas técnicas y compensaciones visibles.
+- Distribución APARENTE del peso, únicamente cuando pueda inferirse directamente por los apoyos visibles.
+
 REGLAS ESTRICTAS:
 - NO emitas diagnósticos médicos ni fisioterapéuticos.
-- NO afirmes enfermedades, dolor, espasticidad, fuerza muscular, rigidez, Parkinson, ACV, artrosis, fracturas ni alteraciones neurológicas, a menos que sean absolutamente visibles de forma inequívoca (por ejemplo, el uso de una férula, yeso, silla de ruedas o bastón).
-- Limítate a describir aspectos observables: postura, alineación corporal, simetría, apoyo, base de sustentación, posición de cabeza, hombros, tronco, pelvis, rodillas, pies, uso de ayudas técnicas, compensaciones visibles, patrón general de marcha (solo si es evidente en la imagen) y distribución aparente del peso.
-- Si la imagen no permite un análisis confiable (mala iluminación, desenfoque, poca visibilidad del cuerpo, encuadre inadecuado, etc.), responde ÚNICAMENTE con el texto exacto: IMAGEN_NO_ANALIZABLE: seguido de una breve razón.
-- Si sí es analizable, responde EXCLUSIVAMENTE en español y con este formato exacto, sin añadir nada antes ni después:
+- NO afirmes dolor, debilidad, fuerza muscular, espasticidad, rigidez, contractura, enfermedad, Parkinson, ACV, artrosis, fractura ni alteraciones neurológicas.
+- NO describas ropa, mobiliario, habitación, edad, sexo, identidad ni otros elementos sin relevancia postural.
+- NO redactes frases narrativas como “la persona se encuentra…”, “la persona está…”, “en la foto aparece…” o “se observa a una persona…”.
+- NO conviertas la postura observada en diagnóstico. Usa expresiones prudentes como “se aprecia”, “se observa”, “aparente” o “visible en el registro”.
+- NO valores patrón de marcha a partir de una fotografía estática. Solo menciona marcha si la imagen muestra de forma inequívoca una fase dinámica.
+- Prioriza las ALTERACIONES visibles. No rellenes la respuesta con hallazgos normales solo para completar viñetas.
+- Si una región corporal no es visible, no inventes datos y señala la limitación en Observaciones fisioterapéuticas.
+- Si no se identifican alteraciones claras, indícalo expresamente sin inventar hallazgos.
+- Si la imagen no permite un análisis confiable por mala iluminación, desenfoque, obstrucción o encuadre insuficiente, responde ÚNICAMENTE: IMAGEN_NO_ANALIZABLE: seguido de una razón breve.
 
-Hallazgos observados
-• [hallazgo observable 1]
-• [hallazgo observable 2]
-• [hallazgo observable 3]
-• [hallazgo observable 4]
+FORMATO OBLIGATORIO, EXCLUSIVAMENTE EN ESPAÑOL:
 
-Observaciones
-[texto corto indicando únicamente lo observable, sin interpretaciones clínicas]
+Hallazgos posturales observables
+• [alteración postural o biomecánica visible]
+• [alteración postural o biomecánica visible]
+• [alteración postural o biomecánica visible]
+
+Observaciones fisioterapéuticas
+[Una o dos frases breves sobre las regiones que pueden valorarse y las limitaciones del encuadre. No describas la escena.]
 
 Este análisis fue generado automáticamente mediante inteligencia artificial como apoyo al fisioterapeuta y debe ser validado clínicamente antes de incorporarse al informe.`;
 
@@ -2590,12 +2609,13 @@ async function analizarFotografiaConIA(id){
           contents: [{
             role:'user',
             parts:[
-              { text:'Describe objetivamente lo visible en esta fotografía clínica de fisioterapia, siguiendo estrictamente las reglas indicadas.' },
+              { text:'Analiza esta imagen desde un enfoque de observación fisioterapéutica. Redacta solamente las alteraciones posturales, biomecánicas, de alineación y las compensaciones visibles. No narres la escena ni describas de forma general a la persona. Respeta exactamente el formato solicitado.' },
               { inline_data:{ mime_type: mimeType, data: base64Data } }
             ]
           }],
           generationConfig:{
             maxOutputTokens: 1500,
+            temperature: 0.1,
             thinkingConfig:{ thinkingLevel:'minimal' }
           }
         })
@@ -2637,7 +2657,7 @@ async function analizarFotografiaConIA(id){
 
     if(statusEl){
       statusEl.className='foto-ia-status good';
-      statusEl.textContent = 'Borrador generado por IA cargado en la descripción. Revíselo y edítelo antes de guardar el informe.';
+      statusEl.textContent = 'Borrador de hallazgos fisioterapéuticos cargado en la descripción. Revíselo y edítelo antes de guardar el informe.';
     }
   }catch(e){
     if(statusEl){
