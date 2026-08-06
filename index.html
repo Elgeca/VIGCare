@@ -1390,6 +1390,17 @@ const REGLAS_ESCALAS_POR_PATOLOGIA = [
   { claves:['fractura de cadera','protesis de cadera','prótesis de cadera'], escalas:['Índice de Barthel','Timed Up and Go (TUG)','Berg','SPPB'] }
 ];
 
+// Cuando no se reconoce una patología concreta, estas reglas permiten sugerir
+// escalas por hallazgos funcionales escritos por el fisioterapeuta. No asignan
+// diagnósticos: únicamente relacionan dolor, fuerza, marcha y dependencia con
+// instrumentos de evaluación compatibles.
+const REGLAS_ESCALAS_POR_HALLAZGOS = [
+  { claves:['dolor de rodilla','dolor de rodillas','dolor en rodilla','dolor en ambas rodillas'], escalas:['Escala Visual Analógica (EVA)'] },
+  { claves:['disminucion de fuerza muscular en miembros inferiores','debilidad en miembros inferiores','debilidad de miembros inferiores','fuerza muscular en miembros inferiores'], escalas:['SPPB','Chair Stand Test'] },
+  { claves:['limitacion funcional durante la marcha','dificultad para caminar','dificultad durante la marcha','alteracion de la marcha'], escalas:['Timed Up and Go (TUG)','Índice de Barthel'] },
+  { claves:['dependencia funcional','limitacion en actividades de la vida diaria','limitaciones en actividades de la vida diaria'], escalas:['Índice de Barthel'] }
+];
+
 function normalizarTextoClinico(valor){
   return (valor||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 }
@@ -1398,22 +1409,40 @@ function obtenerEscalasRecomendadas(){
   const fis = document.getElementById('r_diagnostico');
   const texto = normalizarTextoClinico(`${med?med.value:''} ${fis?fis.value:''}`);
   const sugeridas = [];
+
+  // Las reglas por patología tienen prioridad clínica.
   REGLAS_ESCALAS_POR_PATOLOGIA.forEach(regla=>{
     if(regla.claves.some(k=>texto.includes(normalizarTextoClinico(k)))){
       regla.escalas.forEach(e=>{ if(!sugeridas.includes(e)) sugeridas.push(e); });
     }
   });
+
+  // Si no se escribió una patología reconocible, utiliza hallazgos funcionales
+  // sin inferir ni asignar un diagnóstico médico.
+  if(!sugeridas.length){
+    REGLAS_ESCALAS_POR_HALLAZGOS.forEach(regla=>{
+      if(regla.claves.some(k=>texto.includes(normalizarTextoClinico(k)))){
+        regla.escalas.forEach(e=>{ if(!sugeridas.includes(e)) sugeridas.push(e); });
+      }
+    });
+  }
   return sugeridas;
 }
 function mostrarEscalasRecomendadas(){
   const cont = document.getElementById('r_escalas_recomendadas');
   if(!cont) return;
   const sugeridas = obtenerEscalasRecomendadas();
+  const med = document.getElementById('r_diagnostico_medico');
+  const fis = document.getElementById('r_diagnostico');
+  const hayTexto = Boolean(`${med?med.value:''} ${fis?fis.value:''}`.trim());
+
   // Obliga a recalcular la ruta la próxima vez que se abra el módulo de Escalas.
   firmaEscalasAuto = '';
   cont.innerHTML = sugeridas.length
-    ? `<div class="result" style="margin-top:10px;"><strong>Escalas recomendadas según la patología registrada:</strong><div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;">${sugeridas.map(e=>`<span class="pill">${e}</span>`).join('')}</div><div class="field-hint" style="margin-top:7px;">Al entrar al módulo de Escalas, las disponibles quedarán preseleccionadas automáticamente y se abrirá la primera pendiente.</div></div>`
-    : '';
+    ? `<div class="result" style="margin-top:10px;"><strong>Escalas recomendadas según el diagnóstico o los hallazgos registrados:</strong><div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;">${sugeridas.map(e=>`<span class="pill">${e}</span>`).join('')}</div><div class="field-hint" style="margin-top:7px;">Al entrar al módulo de Escalas, las disponibles quedarán preseleccionadas automáticamente y se abrirá la primera pendiente.</div></div>`
+    : (hayTexto
+      ? `<div class="field-hint" style="margin-top:8px;">No se reconoció todavía una patología o un hallazgo funcional asociado a las reglas de escalas. Puedes completar el diagnóstico con términos clínicos como gonartrosis, dolor de rodillas, debilidad de miembros inferiores o dificultad para caminar.</div>`
+      : '');
 }
 
 function guardarRegistro(){
