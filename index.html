@@ -1893,6 +1893,15 @@ const SCALES = [
       return ['Movilidad normal, bajo riesgo de caída','good'];
     }, max:null
   },
+  { id:'alcancefuncional', name:'Test de Alcance Funcional', sub:'Equilibrio dinámico en bipedestación · registra la distancia máxima alcanzada hacia adelante en centímetros',
+    items:[
+      {label:'Distancia máxima alcanzada hacia adelante (cm)', opts:null, numeric:true, min:0, max:100, step:0.1}
+    ],
+    interpret:(s)=>{
+      if(s===0) return ['Alcance funcional no logrado o registrado como 0 cm — requiere valoración clínica','risk'];
+      return [`Distancia de alcance funcional registrada: ${s} cm — interpretar según el protocolo aplicado y el contexto clínico del paciente`,'mid'];
+    }, max:null
+  },
   { id:'berg', name:'Escala de Equilibrio de Berg', sub:'Equilibrio funcional · 14 ítems, cada uno 0-4 puntos · máx. 56 puntos',
     items:[
       {label:'Sedestación a bipedestación', opts:[['0',0],['1',1],['2',2],['3',3],['4',4]]},
@@ -2013,6 +2022,7 @@ const SCALE_META = {
   lawton:{area:'AIVD', evalua:'Actividades instrumentales'},
   tug:{area:'Movilidad', evalua:'Movilidad y riesgo de caídas'},
   berg:{area:'Equilibrio', evalua:'Equilibrio funcional'},
+  alcancefuncional:{area:'Equilibrio', evalua:'Alcance anterior y control postural dinámico'},
   tinetti:{area:'Marcha', evalua:'Marcha y equilibrio'},
   sppb:{area:'Rendimiento físico', evalua:'Función de miembros inferiores'},
   chairstand:{area:'Fuerza', evalua:'Fuerza funcional de MMII'},
@@ -2037,6 +2047,8 @@ const ESCALA_ID_POR_NOMBRE = {
   'timed up and go (tug)':'tug',
   'berg':'berg',
   'escala de equilibrio de berg':'berg',
+  'alcance funcional':'alcancefuncional',
+  'test de alcance funcional':'alcancefuncional',
   'sppb':'sppb',
   'chair stand test':'chairstand',
   'gds-15 de yesavage':'gds',
