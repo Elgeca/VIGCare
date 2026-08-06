@@ -1060,6 +1060,7 @@ function _renderWorkspaceSection(id){
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
   navbtn.classList.add('active');
   window.scrollTo({top:0,behavior:'smooth'});
+  if(id==='escalas') renderScales(prepararEscalasRecomendadasAlEntrar());
   if(id==='informe') generarInforme();
 }
 function _renderExpedienteScreen(id){
@@ -1165,6 +1166,7 @@ function dashNuevoPaciente(){
   state.anexos = { registroFotografico:[] };
   state.editingId = null;
   escalaActual = null;
+  firmaEscalasAuto = '';
   doneModules.clear();
   limpiarFormularioRegistro();
   renderRegistroFotografico();
@@ -1407,8 +1409,10 @@ function mostrarEscalasRecomendadas(){
   const cont = document.getElementById('r_escalas_recomendadas');
   if(!cont) return;
   const sugeridas = obtenerEscalasRecomendadas();
+  // Obliga a recalcular la ruta la próxima vez que se abra el módulo de Escalas.
+  firmaEscalasAuto = '';
   cont.innerHTML = sugeridas.length
-    ? `<div class="result" style="margin-top:10px;"><strong>Escalas recomendadas según la patología registrada:</strong><div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;">${sugeridas.map(e=>`<span class="pill">${e}</span>`).join('')}</div><div class="field-hint" style="margin-top:7px;">Son sugerencias clínicas y no se seleccionan automáticamente. La tabla REGLAS_ESCALAS_POR_PATOLOGIA permite añadir nuevas patologías sin modificar la interfaz.</div></div>`
+    ? `<div class="result" style="margin-top:10px;"><strong>Escalas recomendadas según la patología registrada:</strong><div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;">${sugeridas.map(e=>`<span class="pill">${e}</span>`).join('')}</div><div class="field-hint" style="margin-top:7px;">Al entrar al módulo de Escalas, las disponibles quedarán preseleccionadas automáticamente y se abrirá la primera pendiente.</div></div>`
     : '';
 }
 
@@ -1610,6 +1614,7 @@ function cargarPacienteEnFormulario(id){
   state.anexos = normalizarAnexosFotograficos(rec.anexos);
   state.editingId = rec._id;
   escalaActual = null;
+  firmaEscalasAuto = '';
 
   const p = rec.paciente || {};
   const setVal = (id2,val)=>{ const el=document.getElementById(id2); if(el) el.value = val!=null?val:''; };
@@ -1773,6 +1778,26 @@ const SCALES = [
       if(s>=14) return ['Deterioro cognitivo moderado','risk'];
       return ['Deterioro cognitivo severo','risk'];
     }, max:30
+  },
+  { id:'womac', name:'WOMAC (registro del puntaje total)', sub:'Dolor, rigidez y función física en artrosis · registra el puntaje total de la versión Likert 0-96 aplicada clínicamente',
+    items:[
+      {label:'Puntaje total WOMAC (0 a 96)', opts:null, numeric:true, min:0, max:96, step:1}
+    ],
+    interpret:(s)=>{
+      if(s===0) return ['Puntaje WOMAC 0/96 — sin afectación reportada en el registro','good'];
+      return [`Puntaje WOMAC ${s}/96 — a mayor puntuación, mayor dolor, rigidez y limitación funcional`,'mid'];
+    }, max:96
+  },
+  { id:'eva', name:'Escala Visual Analógica (EVA)', sub:'Intensidad del dolor percibido · registra un valor de 0 a 10',
+    items:[
+      {label:'Intensidad actual del dolor (0 = sin dolor; 10 = máximo dolor imaginable)', opts:null, numeric:true, min:0, max:10, step:0.1}
+    ],
+    interpret:(s)=>{
+      if(s===0) return ['Sin dolor reportado','good'];
+      if(s<=3) return ['Dolor de intensidad leve','good'];
+      if(s<=6) return ['Dolor de intensidad moderada','mid'];
+      return ['Dolor de intensidad alta','risk'];
+    }, max:10
   },
   { id:'barthel', name:'Índice de Barthel', sub:'Actividades básicas de la vida diaria (AVD) · máx. 100 puntos',
     items:[
@@ -1953,6 +1978,8 @@ const SCALES = [
 const SCALE_META = {
   mmse:{area:'Cognición', evalua:'Estado cognitivo'},
   gds:{area:'Depresión', evalua:'Síntomas depresivos'},
+  womac:{area:'Dolor y función', evalua:'Dolor, rigidez y limitación funcional por artrosis'},
+  eva:{area:'Dolor', evalua:'Intensidad subjetiva del dolor'},
   barthel:{area:'ABVD', evalua:'Independencia funcional'},
   lawton:{area:'AIVD', evalua:'Actividades instrumentales'},
   tug:{area:'Movilidad', evalua:'Movilidad y riesgo de caídas'},
@@ -1967,11 +1994,71 @@ const SCALE_META = {
   sarcf:{area:'Sarcopenia', evalua:'Riesgo de sarcopenia'},
 };
 let escalaActual = null;
+let firmaEscalasAuto = '';
+
+// Relaciona el nombre clínico mostrado en las recomendaciones con el formulario
+// realmente disponible en el módulo de Escalas.
+const ESCALA_ID_POR_NOMBRE = {
+  'mmse':'mmse',
+  'indice de barthel':'barthel',
+  'lawton-brody':'lawton',
+  'indice de lawton-brody':'lawton',
+  'tinetti':'tinetti',
+  'escala de tinetti':'tinetti',
+  'timed up and go (tug)':'tug',
+  'berg':'berg',
+  'escala de equilibrio de berg':'berg',
+  'sppb':'sppb',
+  'chair stand test':'chairstand',
+  'gds-15 de yesavage':'gds',
+  'escala de rankin modificada':'rankin',
+  'frail':'frail',
+  'edmonton frail scale':'edmonton',
+  'clinical frailty scale':'cfs',
+  'sarc-f':'sarcf',
+  'womac':'womac',
+  'escala visual analogica (eva)':'eva'
+};
+
+function resolverIdEscalaRecomendada(nombre){
+  const clave = normalizarTextoClinico(nombre).replace(/\s+/g,' ').trim();
+  return ESCALA_ID_POR_NOMBRE[clave] || null;
+}
+
+function obtenerRutaEscalasRecomendadas(){
+  const nombres = obtenerEscalasRecomendadas();
+  const ids = [];
+  const noDisponibles = [];
+  nombres.forEach(nombre=>{
+    const id = resolverIdEscalaRecomendada(nombre);
+    if(id && SCALES.some(sc=>sc.id===id)){
+      if(!ids.includes(id)) ids.push(id);
+    }else{
+      noDisponibles.push(nombre);
+    }
+  });
+  return {nombres, ids, noDisponibles};
+}
+
+function prepararEscalasRecomendadasAlEntrar(){
+  const ruta = obtenerRutaEscalasRecomendadas();
+  const firma = ruta.ids.join('|')+'//'+ruta.noDisponibles.join('|');
+  // Solo cambia la escala abierta cuando la recomendación es nueva o todavía no
+  // existe una selección. Así no pisa una elección manual durante la evaluación.
+  if(ruta.ids.length && (firma!==firmaEscalasAuto || !escalaActual)){
+    escalaActual = ruta.ids.find(id=>!state.escalas[id]) || ruta.ids[0];
+  }
+  firmaEscalasAuto = firma;
+  return ruta;
+}
 
 function buildScaleForm(sc){
   const itemsHtml = sc.items.map((it,i)=>{
     if(it.numeric){
-      return `<div class="scale-item"><span class="itxt">${it.label}</span><input type="number" step="0.1" id="${sc.id}_${i}" style="width:200px;"></div>`;
+      const min = Number.isFinite(it.min) ? ` min="${it.min}"` : '';
+      const max = Number.isFinite(it.max) ? ` max="${it.max}"` : '';
+      const step = it.step!=null ? ` step="${it.step}"` : ' step="0.1"';
+      return `<div class="scale-item"><span class="itxt">${it.label}</span><input type="number"${step}${min}${max} id="${sc.id}_${i}" style="width:200px;"></div>`;
     }
     const opts = it.opts.map(o=>`<option value="${o[1]}">${o[0]}</option>`).join('');
     return `<div class="scale-item"><span class="itxt">${it.label}</span><select id="${sc.id}_${i}">${opts}</select></div>`;
@@ -1985,8 +2072,10 @@ function buildScaleForm(sc){
   </div>`;
 }
 
-function renderScales(){
+function renderScales(rutaRecibida){
   const c = document.getElementById('escalasContainer');
+  if(!c) return;
+  const ruta = rutaRecibida || obtenerRutaEscalasRecomendadas();
   const refRows = SCALES.map(sc=>{
     const meta = SCALE_META[sc.id]||{};
     const done = state.escalas[sc.id];
@@ -1997,7 +2086,30 @@ function renderScales(){
   ).join('');
   const sc = escalaActual ? SCALES.find(s=>s.id===escalaActual) : null;
 
+  const botonesRuta = ruta.ids.map((id,indice)=>{
+    const escala = SCALES.find(s=>s.id===id);
+    if(!escala) return '';
+    const hecha = !!state.escalas[id];
+    const activa = escalaActual===id;
+    const estilo = activa
+      ? 'background:linear-gradient(100deg,var(--teal) 0%,var(--teal-deep) 100%);color:#fff;border-color:transparent;'
+      : '';
+    return `<button type="button" id="rutaEscala_${id}" class="ghost" onclick="seleccionarEscala('${id}')" style="${estilo}">${hecha?'✓ ':`${indice+1}. `}${escala.name}</button>`;
+  }).join('');
+  const noDisponibles = ruta.noDisponibles.length
+    ? `<div class="field-hint" style="margin-top:9px;">También sugeridas como referencia clínica, pero sin formulario integrado en esta versión: ${ruta.noDisponibles.join(', ')}.</div>`
+    : '';
+  const rutaHtml = ruta.nombres.length
+    ? `<div class="result good noprint" style="margin-bottom:18px;">
+        <strong>Ruta de escalas preseleccionada automáticamente</strong>
+        <div class="field-hint" style="margin-top:5px;">Se generó a partir del diagnóstico registrado. Pulsa cada escala para completarla; la primera pendiente se abre automáticamente.</div>
+        ${botonesRuta ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">${botonesRuta}</div>` : ''}
+        ${noDisponibles}
+      </div>`
+    : '';
+
   c.innerHTML = `
+    ${rutaHtml}
     <table class="report escalas-ref">
       <tr><th>Área</th><th>Escala / Test</th><th>Evalúa</th></tr>
       ${refRows}
@@ -2021,16 +2133,28 @@ function seleccionarEscala(id){
 function calcScale(id){
   const sc = SCALES.find(s=>s.id===id);
   let total = 0;
+  let valido = true;
   sc.items.forEach((it,i)=>{
     const el = document.getElementById(`${id}_${i}`);
-    total += parseFloat(el.value)||0;
+    const valor = parseFloat(el.value)||0;
+    if(it.numeric && ((Number.isFinite(it.min)&&valor<it.min) || (Number.isFinite(it.max)&&valor>it.max))){
+      valido = false;
+      el.focus();
+    }
+    total += valor;
   });
+  if(!valido){
+    alert('Revisa el valor ingresado: está fuera del rango permitido para esta escala.');
+    return;
+  }
   const [txt,cls] = sc.interpret(total);
   state.escalas[id] = {total, txt};
   markDone('escalas');
   document.getElementById(id+'_result').innerHTML = `<div class="result ${cls}"><span class="big">${total}${sc.max?(' / '+sc.max):(id==='tug'||id==='chairstand'?'':'')}</span><span class="tag">${txt}</span></div>`;
   const opt = document.querySelector(`#escalaSelector option[value="${id}"]`);
   if(opt) opt.textContent = '✓ ' + sc.name;
+  const rutaBtn = document.getElementById('rutaEscala_'+id);
+  if(rutaBtn) rutaBtn.textContent = '✓ ' + sc.name;
 }
 
 /* ============================================================
