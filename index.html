@@ -2465,31 +2465,29 @@ function renderRegistroFotografico(){
 /* ============================================================
    ANÁLISIS AUTOMÁTICO DE FOTOGRAFÍA CLÍNICA MEDIANTE IA
    ------------------------------------------------------------
-   Usa un modelo multimodal (API de Google Gemini, compatible con
-   gemini-2.5-flash / gemini-2.5-flash-lite / gemini-2.5-pro con visión) SOLO para describir
-   objetivamente lo visible en la fotografía (postura, alineación,
-   simetría, apoyo, ayudas técnicas, etc.). El prompt prohíbe
-   explícitamente diagnósticos médicos o fisioterapéuticos. El
-   resultado se carga como borrador editable dentro del MISMO
-   textarea "Descripción clínica / Hallazgos posturales", usando
-   exactamente actualizarCampoRegistroFotografico /
-   guardarCampoRegistroFotografico — las mismas funciones que ya
-   usaba la edición manual — por lo que el flujo de generación del
-   informe y del PDF (que solo leen foto.descripcion) no cambia en
-   absoluto.
+   Usa Gemini como análisis principal y, si no está disponible,
+   MediaPipe Pose como respaldo local para generar un borrador
+   básico de hallazgos posturales visibles. Todo el resultado se
+   carga dentro del MISMO textarea "Descripción clínica /
+   Hallazgos posturales", por lo que el flujo del informe y del
+   PDF no cambia.
    ============================================================ */
 // La configuración de Gemini queda interna para que el fisioterapeuta no tenga
 // que ver ni modificar datos técnicos en la interfaz.
 const IA_DEFAULT_API_KEY = 'AQ.Ab8RN6K-51AOQBhCH7BUtf6q8JkWPgADbWDsnHqDb0dfq8KNaQ';
 const IA_DEFAULT_MODEL = 'gemini-3.5-flash-lite';
+const IA_MODELOS_RESPALDO = ['gemini-3.6-flash'];
+const IA_CACHE_KEY = 'vigcare_ia_resultados_cache_v2';
+const MP_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+const MP_WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
+const MP_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+let mpScriptPromise = null;
+let mpPosePromise = null;
+
 function cargarConfigIA(){
   return { apiKey: IA_DEFAULT_API_KEY, modelo: IA_DEFAULT_MODEL };
 }
 
-// Prompt de sistema: define el rol, los límites clínicos estrictos (solo
-// descripción objetiva, nunca diagnóstico), el formato de salida exacto y el
-// marcador que debe usar el modelo cuando la imagen no permite un análisis
-// confiable, para que la app pueda detectarlo y mostrar el mensaje adecuado.
 const IA_PROMPT_SISTEMA = `Actúa como asistente de DOCUMENTACIÓN FISIOTERAPÉUTICA para analizar una fotografía clínica.
 
 OBJETIVO PRINCIPAL:
@@ -2528,11 +2526,7 @@ Observaciones fisioterapéuticas
 
 Este análisis fue generado automáticamente mediante inteligencia artificial como apoyo al fisioterapeuta y debe ser validado clínicamente antes de incorporarse al informe.`;
 
-const IA_CACHE_KEY = 'vigcare_ia_resultados_cache_v1';
-
 function crearHuellaFotografia(dataUrl){
-  // Huella ligera: permite reutilizar el resultado de la misma fotografía sin
-  // consumir otra solicitud de API. No guarda la imagen dentro de la caché.
   let hash = 2166136261;
   const paso = Math.max(1, Math.floor(dataUrl.length / 8000));
   for(let i=0;i<dataUrl.length;i+=paso){
@@ -2555,7 +2549,7 @@ function guardarAnalisisCache(dataUrl,texto){
     const cache = JSON.parse(localStorage.getItem(IA_CACHE_KEY)||'{}');
     const clave = crearHuellaFotografia(dataUrl);
     cache[clave] = {texto, fecha:Date.now()};
-    const entradas = Object.entries(cache).sort((a,b)=>(b[1].fecha||0)-(a[1].fecha||0)).slice(0,12);
+    const entradas = Object.entries(cache).sort((a,b)=>(b[1].fecha||0)-(a[1].fecha||0)).slice(0,16);
     localStorage.setItem(IA_CACHE_KEY,JSON.stringify(Object.fromEntries(entradas)));
   }catch(e){ /* La caché es opcional. */ }
 }
@@ -2574,14 +2568,14 @@ function extraerSegundosReintento(datos,errorTexto){
   return 60;
 }
 
-function bloquearBotonPorCuota(btnEl,statusEl,segundos){
+function bloquearBotonPorCuota(btnEl,statusEl,segundos,mensajeExtra=''){
   if(!btnEl) return;
   let restante = Math.max(5,Math.ceil(segundos||60));
   btnEl.disabled = true;
   const actualizar = ()=>{
     if(statusEl){
       statusEl.className='foto-ia-status risk';
-      statusEl.textContent='El servicio de IA alcanzó temporalmente el límite gratuito. Podrá volver a intentarlo en '+restante+' s. La fotografía no se perdió.';
+      statusEl.textContent='El servicio de IA alcanzó temporalmente el límite gratuito. Podrá volver a intentarlo en '+restante+' s.'+(mensajeExtra?(' '+mensajeExtra):'');
     }
     if(restante<=0){
       clearInterval(timer);
@@ -2651,6 +2645,213 @@ function cargarTextoAnalisisEnFoto(id,texto){
   guardarCampoRegistroFotografico(id,'descripcion',texto);
 }
 
+function cargarScriptExterno(src){
+  if(mpScriptPromise) return mpScriptPromise;
+  mpScriptPromise = new Promise((resolve,reject)=>{
+    if(window.vision && window.vision.PoseLandmarker && window.vision.FilesetResolver){ resolve(); return; }
+    const existente = Array.from(document.scripts||[]).find(s=>s.src===src);
+    if(existente){
+      existente.addEventListener('load',()=>resolve(),{once:true});
+      existente.addEventListener('error',()=>reject(new Error('No se pudo cargar la librería de MediaPipe.')),{once:true});
+      return;
+    }
+    const script=document.createElement('script');
+    script.src=src;
+    script.async=true;
+    script.onload=()=>resolve();
+    script.onerror=()=>reject(new Error('No se pudo cargar la librería de MediaPipe.'));
+    document.head.appendChild(script);
+  });
+  return mpScriptPromise;
+}
+
+async function obtenerPoseLandmarker(){
+  if(mpPosePromise) return mpPosePromise;
+  mpPosePromise=(async()=>{
+    await cargarScriptExterno(MP_SCRIPT_URL);
+    if(!(window.vision&&window.vision.FilesetResolver&&window.vision.PoseLandmarker)){
+      throw new Error('La librería de MediaPipe no quedó disponible.');
+    }
+    const filesetResolver = await window.vision.FilesetResolver.forVisionTasks(MP_WASM_URL);
+    return window.vision.PoseLandmarker.createFromOptions(filesetResolver,{
+      baseOptions:{ modelAssetPath: MP_MODEL_URL },
+      runningMode:'IMAGE',
+      numPoses:1,
+      minPoseDetectionConfidence:0.45,
+      minPosePresenceConfidence:0.45,
+      minTrackingConfidence:0.45
+    });
+  })();
+  return mpPosePromise;
+}
+
+function cargarImagenAnalisis(dataUrl){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>resolve(img);
+    img.onerror=()=>reject(new Error('No se pudo cargar la fotografía para el análisis local.'));
+    img.src=dataUrl;
+  });
+}
+
+function esVisiblePunto(p){
+  return !!p && (typeof p.visibility!=='number' || p.visibility>0.45) && (typeof p.presence!=='number' || p.presence>0.45);
+}
+
+function obtenerPunto(landmarks,idx){
+  const p = landmarks&&landmarks[idx];
+  return esVisiblePunto(p) ? p : null;
+}
+
+function puntoMedio(a,b){
+  return (!a||!b) ? null : {x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+}
+
+function distancia(a,b){
+  return (!a||!b) ? 0 : Math.hypot((a.x-b.x),(a.y-b.y));
+}
+
+function anguloABC(a,b,c){
+  if(!a||!b||!c) return 180;
+  const abx=a.x-b.x, aby=a.y-b.y;
+  const cbx=c.x-b.x, cby=c.y-b.y;
+  const mag1=Math.hypot(abx,aby), mag2=Math.hypot(cbx,cby);
+  if(!mag1||!mag2) return 180;
+  const cos = Math.max(-1,Math.min(1,(abx*cbx+aby*cby)/(mag1*mag2)));
+  return Math.acos(cos)*180/Math.PI;
+}
+
+function generarTextoMediaPipe(landmarks,img){
+  const ls=obtenerPunto(landmarks,11), rs=obtenerPunto(landmarks,12);
+  const lh=obtenerPunto(landmarks,23), rh=obtenerPunto(landmarks,24);
+  const lk=obtenerPunto(landmarks,25), rk=obtenerPunto(landmarks,26);
+  const la=obtenerPunto(landmarks,27), ra=obtenerPunto(landmarks,28);
+  const le=obtenerPunto(landmarks,7), re=obtenerPunto(landmarks,8);
+  const lfi=obtenerPunto(landmarks,31), rfi=obtenerPunto(landmarks,32);
+  const hallazgos=[];
+  const observaciones=[];
+
+  const shoulderMid=puntoMedio(ls,rs);
+  const hipMid=puntoMedio(lh,rh);
+  const ankleMid=puntoMedio(la,ra);
+  const shoulderWidth = distancia(ls,rs) || 0.18;
+
+  if(!shoulderMid || !hipMid){
+    throw new Error('No fue posible detectar suficientes referencias corporales para el análisis local. Procure mostrar tronco y miembros inferiores con mayor claridad.');
+  }
+
+  if(le && re){
+    const diff = le.y - re.y;
+    if(Math.abs(diff) > 0.018){
+      hallazgos.push('Se aprecia inclinación lateral aparente de la cabeza hacia el lado '+(diff>0?'izquierdo':'derecho')+'.');
+    }
+  }
+
+  if(ls && rs){
+    const diff = ls.y - rs.y;
+    if(Math.abs(diff) > 0.022){
+      hallazgos.push('Se observa asimetría en la altura de los hombros, con descenso aparente del hombro '+(diff>0?'izquierdo':'derecho')+'.');
+    }
+  }
+
+  if(shoulderMid && hipMid){
+    const diffX = shoulderMid.x - hipMid.x;
+    if(Math.abs(diffX) > 0.03){
+      hallazgos.push('Se aprecia inclinación lateral aparente del tronco hacia el lado '+(diffX<0?'izquierdo':'derecho')+'.');
+    }
+  }
+
+  if(lh && rh){
+    const diff = lh.y - rh.y;
+    if(Math.abs(diff) > 0.022){
+      hallazgos.push('Se observa oblicuidad pélvica aparente, con descenso del hemipelvis '+(diff>0?'izquierdo':'derecho')+'.');
+    }
+  }
+
+  const angIzq = anguloABC(lh,lk,la);
+  const angDer = anguloABC(rh,rk,ra);
+  const flexIzq = lk && la && lh && angIzq < 165;
+  const flexDer = rk && ra && rh && angDer < 165;
+  if(flexIzq && flexDer){
+    hallazgos.push('Se aprecia flexión aparente de ambas rodillas en la postura registrada.');
+  }else if(flexIzq){
+    hallazgos.push('Se aprecia flexión aparente de la rodilla izquierda.');
+  }else if(flexDer){
+    hallazgos.push('Se aprecia flexión aparente de la rodilla derecha.');
+  }
+
+  if(la && ra && shoulderWidth){
+    const base = distancia(la,ra) / shoulderWidth;
+    if(base > 1.45){
+      hallazgos.push('La base de sustentación se observa aumentada por la separación entre ambos apoyos.');
+    }else if(base < 0.62){
+      hallazgos.push('La base de sustentación se observa estrecha por la cercanía entre ambos apoyos.');
+    }
+  }
+
+  if(ankleMid && hipMid){
+    const shift = hipMid.x - ankleMid.x;
+    if(Math.abs(shift) > 0.03){
+      hallazgos.push('Se aprecia desplazamiento lateral del eje corporal con carga aparente hacia el lado '+(shift<0?'izquierdo':'derecho')+'.');
+    }
+  }
+
+  if(lfi && rfi && la && ra){
+    const orient = (Math.abs((lfi.x-la.x)) + Math.abs((rfi.x-ra.x)))/2;
+    if(orient > 0.045){
+      hallazgos.push('Se observa orientación divergente de los pies en el apoyo visible.');
+    }
+  }
+
+  if(hallazgos.length===0){
+    hallazgos.push('No se identifican alteraciones posturales marcadas en las referencias corporales visibles de la fotografía.');
+  }
+
+  const regiones=[];
+  if(ls && rs) regiones.push('cintura escapular');
+  if(lh && rh) regiones.push('pelvis');
+  if((lk&&rk)||(la&&ra)) regiones.push('miembros inferiores');
+  if(le && re) regiones.push('región cefálica');
+  if(regiones.length){
+    observaciones.push('El análisis local permite valorar principalmente '+regiones.join(', ')+'.');
+  }
+  if(!(ls && rs && lh && rh && la && ra)){
+    observaciones.push('Algunas referencias corporales no se visualizan por completo, por lo que la descripción se limita a los segmentos mejor definidos.');
+  }
+  if(img && (img.width < 260 || img.height < 260)){
+    observaciones.push('La resolución de la imagen es reducida, lo que disminuye la precisión del análisis automático.');
+  }
+  observaciones.push('Este respaldo local con MediaPipe no valora dolor, fuerza muscular, tono, rigidez ni patrón de marcha.');
+
+  return 'Hallazgos posturales observables\n'+hallazgos.map(h=>'• '+h).join('\n')+'\n\nObservaciones fisioterapéuticas\n'+observaciones.join(' ')+'\n\nEste análisis fue generado automáticamente mediante inteligencia artificial como apoyo al fisioterapeuta y debe ser validado clínicamente antes de incorporarse al informe.';
+}
+
+async function generarAnalisisMediaPipe(dataUrl){
+  const img = await cargarImagenAnalisis(dataUrl);
+  const poseLandmarker = await obtenerPoseLandmarker();
+  const resultado = poseLandmarker.detect(img);
+  const landmarks = resultado && resultado.landmarks && resultado.landmarks[0];
+  if(!landmarks || !landmarks.length){
+    throw new Error('No fue posible detectar una postura humana de forma confiable en esta fotografía.');
+  }
+  return generarTextoMediaPipe(landmarks,img);
+}
+
+async function intentarRespaldoMediaPipe(id,foto,statusEl){
+  if(statusEl){
+    statusEl.className='foto-ia-status';
+    statusEl.innerHTML='<span class="foto-ia-spinner"></span>El servicio principal no está disponible; generando un borrador local con MediaPipe…';
+  }
+  const texto = await generarAnalisisMediaPipe(foto.dataUrl);
+  cargarTextoAnalisisEnFoto(id,texto);
+  guardarAnalisisCache(foto.dataUrl,texto);
+  if(statusEl){
+    statusEl.className='foto-ia-status good';
+    statusEl.textContent='Se cargó un borrador local con MediaPipe porque Gemini no estuvo disponible. Revíselo y edítelo antes de guardar el informe.';
+  }
+  return true;
+}
+
 async function analizarFotografiaConIA(id){
   const foto=obtenerRegistroFotografico().find(f=>f.id===id);
   if(!foto||!foto.dataUrl){
@@ -2670,7 +2871,6 @@ async function analizarFotografiaConIA(id){
     return;
   }
 
-  // Si la misma fotografía ya fue analizada, recupera el resultado sin gastar cuota.
   const textoCache=obtenerAnalisisCache(foto.dataUrl);
   if(textoCache){
     cargarTextoAnalisisEnFoto(id,textoCache);
@@ -2690,13 +2890,14 @@ async function analizarFotografiaConIA(id){
   const base64Data=(foto.dataUrl.split(',')[1])||'';
   const mimeType=foto.tipo||'image/jpeg';
   const modelos=[];
-  [config.modelo,'gemini-3.5-flash-lite','gemini-3.6-flash'].forEach(m=>{
+  [config.modelo].concat(IA_MODELOS_RESPALDO).forEach(m=>{
     if(m&&!modelos.includes(m)) modelos.push(m);
   });
 
   let respuestaFinal=null;
   let mayorEspera=0;
-  let todos429=true;
+  let huboSolo429=true;
+  let ultimoError='';
 
   try{
     for(let i=0;i<modelos.length;i++){
@@ -2704,56 +2905,59 @@ async function analizarFotografiaConIA(id){
         statusEl.className='foto-ia-status';
         statusEl.innerHTML='<span class="foto-ia-spinner"></span>El modelo principal está ocupado; probando una alternativa…';
       }
-
       const resultado=await solicitarAnalisisGemini(modelos[i],config.apiKey,base64Data,mimeType);
       if(resultado.ok){
         respuestaFinal=resultado;
         break;
       }
-
+      ultimoError = resultado.mensaje || ultimoError;
       if(resultado.status===429){
         mayorEspera=Math.max(mayorEspera,resultado.retrySeconds||60);
         continue;
       }
-
-      todos429=false;
-      throw new Error(resultado.mensaje||'No fue posible comunicarse con el servicio de IA.');
+      huboSolo429=false;
+      break;
     }
 
-    if(!respuestaFinal){
-      if(todos429){
-        bloquearBotonPorCuota(btnEl,statusEl,mayorEspera||60);
+    if(respuestaFinal){
+      const datos=respuestaFinal.datos;
+      const candidato=datos&&datos.candidates&&datos.candidates[0];
+      const texto=candidato&&candidato.content&&Array.isArray(candidato.content.parts)
+        ? candidato.content.parts.map(p=>p.text||'').join('').trim()
+        : '';
+
+      if(!texto){
+        const bloqueo=datos&&datos.promptFeedback&&datos.promptFeedback.blockReason;
+        throw new Error(bloqueo?'La imagen no pudo procesarse con el servicio de IA.':'La IA no devolvió contenido analizable.');
+      }
+
+      if(texto.startsWith('IMAGEN_NO_ANALIZABLE')){
+        const razon=texto.split(':').slice(1).join(':').trim();
+        if(statusEl){
+          statusEl.className='foto-ia-status risk';
+          statusEl.textContent='No fue posible realizar un análisis confiable de esta fotografía'+(razon?(': '+razon):'.')+' Intente con otra imagen o redacte la descripción manualmente.';
+        }
         return;
       }
-      throw new Error('El servicio de IA no respondió correctamente.');
-    }
 
-    const datos=respuestaFinal.datos;
-    const candidato=datos&&datos.candidates&&datos.candidates[0];
-    const texto=candidato&&candidato.content&&Array.isArray(candidato.content.parts)
-      ? candidato.content.parts.map(p=>p.text||'').join('').trim()
-      : '';
-
-    if(!texto){
-      const bloqueo=datos&&datos.promptFeedback&&datos.promptFeedback.blockReason;
-      throw new Error(bloqueo?'La imagen no pudo procesarse con el servicio de IA.':'La IA no devolvió contenido analizable.');
-    }
-
-    if(texto.startsWith('IMAGEN_NO_ANALIZABLE')){
-      const razon=texto.split(':').slice(1).join(':').trim();
+      cargarTextoAnalisisEnFoto(id,texto);
+      guardarAnalisisCache(foto.dataUrl,texto);
       if(statusEl){
-        statusEl.className='foto-ia-status risk';
-        statusEl.textContent='No fue posible realizar un análisis confiable de esta fotografía'+(razon?(': '+razon):'.')+' Intente con otra imagen o redacte la descripción manualmente.';
+        statusEl.className='foto-ia-status good';
+        statusEl.textContent='Borrador de hallazgos fisioterapéuticos cargado en la descripción. Revíselo y edítelo antes de guardar el informe.';
       }
       return;
     }
 
-    cargarTextoAnalisisEnFoto(id,texto);
-    guardarAnalisisCache(foto.dataUrl,texto);
-
-    if(statusEl){
-      statusEl.className='foto-ia-status good';
-      statusEl.textContent='Borrador de hallazgos fisioterapéuticos cargado en la descripción. Revíselo y edítelo antes de guardar el informe.';
+    try{
+      await intentarRespaldoMediaPipe(id,foto,statusEl);
+      return;
+    }catch(errMp){
+      if(huboSolo429){
+        bloquearBotonPorCuota(btnEl,statusEl,mayorEspera||60,'Además, no fue posible activar el respaldo local automáticamente.');
+        return;
+      }
+      throw new Error(errMp&&errMp.message ? errMp.message : (ultimoError||'No fue posible completar el análisis.'));
     }
   }catch(e){
     if(statusEl){
@@ -2761,11 +2965,9 @@ async function analizarFotografiaConIA(id){
       statusEl.textContent=(e&&e.message)||'No fue posible completar el análisis. Revise la conexión y vuelva a intentarlo.';
     }
   }finally{
-    // Si bloquearBotonPorCuota inició una cuenta regresiva, mantiene el botón bloqueado.
     if(btnEl&&!(statusEl&&statusEl.textContent.includes('límite gratuito'))) btnEl.disabled=false;
   }
 }
-
 
 /* ============================================================
    9. INFORME FINAL
