@@ -609,8 +609,20 @@
       </div>
 
       <div class="card">
-        <h3><span class="hnum">5</span> Diagnóstico médico</h3>
-        <div class="field"><label>Diagnóstico médico</label><textarea id="r_diagnostico_medico" placeholder="Diagnóstico médico emitido por el especialista tratante..." oninput="mostrarEscalasRecomendadas()"></textarea></div>
+        <h3><span class="hnum">5</span> Diagnóstico médico · CIE-10</h3>
+        <div class="field"><label>Diagnóstico médico</label><textarea id="r_diagnostico_medico" placeholder="Diagnóstico emitido por el médico tratante..." oninput="mostrarEscalasRecomendadas()"></textarea></div>
+        <div class="grid2">
+          <div class="field">
+            <label>Código CIE-10</label>
+            <input id="r_cie10_codigo" maxlength="12" placeholder="Ej. M17.9" oninput="this.value=this.value.toUpperCase()">
+            <div class="field-hint">Registre el código correspondiente al diagnóstico médico validado.</div>
+          </div>
+          <div class="field">
+            <label>Descripción CIE-10</label>
+            <input id="r_cie10_descripcion" placeholder="Ej. Gonartrosis, no especificada">
+            <div class="field-hint">Puede consignarse la denominación usada por el profesional o la clasificación institucional.</div>
+          </div>
+        </div>
       </div>
 
       <div class="card">
@@ -619,8 +631,35 @@
       </div>
 
       <div class="card">
-        <h3><span class="hnum">7</span> Diagnóstico fisioterapéutico</h3>
-        <div class="field"><label>Diagnóstico fisioterapéutico</label><textarea id="r_diagnostico" placeholder="Ej. Gonartrosis bilateral, sarcopenia sospechada..." oninput="mostrarEscalasRecomendadas()"></textarea></div>
+        <h3><span class="hnum">7</span> Diagnóstico fisioterapéutico · CIF</h3>
+        <div class="field">
+          <label>Formulación del diagnóstico fisioterapéutico</label>
+          <textarea id="r_diagnostico" placeholder="Describa los problemas de funcionamiento, actividad/participación y factores contextuales relevantes..." oninput="mostrarEscalasRecomendadas()"></textarea>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label>CIF · Funciones y estructuras corporales (b / s)</label>
+            <input id="r_cif_funciones" placeholder="Ej. b280.2, b730.2, s750.1">
+            <div class="field-hint">Incluya códigos y calificadores cuando hayan sido valorados.</div>
+          </div>
+          <div class="field">
+            <label>CIF · Actividad y participación (d)</label>
+            <input id="r_cif_actividad" placeholder="Ej. d410.2, d450.3">
+            <div class="field-hint">Registre limitaciones o restricciones relevantes para el caso.</div>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label>CIF · Factores ambientales (e)</label>
+            <input id="r_cif_ambientales" placeholder="Ej. e120+2, e310+1">
+            <div class="field-hint">Puede consignar barreras o facilitadores con su calificador.</div>
+          </div>
+          <div class="field">
+            <label>Resumen / calificadores CIF</label>
+            <input id="r_cif_resumen" placeholder="Ej. Deficiencia moderada y limitación grave de la marcha">
+            <div class="field-hint">Síntesis funcional validada por el fisioterapeuta.</div>
+          </div>
+        </div>
         <div id="r_escalas_recomendadas"></div>
       </div>
 
@@ -894,7 +933,7 @@
    detecte que hay contenido nuevo — ver iniciarComprobacionActualizaciones()
    más abajo. No es un dato de paciente, no toca PACIENTES_KEY.
    ============================================================ */
-const APP_VERSION = '2026.08.06-IA-SIN-CONFIG-VISIBLE';
+const APP_VERSION = '2026.08.07-CIE10-CIF-FITTVP';
 
 /* ============================================================
    TEMA (claro / oscuro)
@@ -1121,7 +1160,8 @@ function limpiarFormularioRegistro(){
    'r_codigo','r_nombre','r_fnac','r_edad','r_cedula','r_ocupacion','r_direccion','r_telefono',
    'r_cuidador_nombre','r_cuidador_parentesco','r_cuidador_telefono',
    'r_peso','r_talla','r_circ_pantorrilla','r_circ_braquial','r_peso_habitual','r_peso_ideal','r_perdida_peso_detalle',
-   'r_fecha','r_diagnostico_medico','r_diagnostico',
+   'r_fecha','r_diagnostico_medico','r_cie10_codigo','r_cie10_descripcion','r_diagnostico',
+   'r_cif_funciones','r_cif_actividad','r_cif_ambientales','r_cif_resumen',
    'r_alt_posturales','r_alt_edema','r_alt_deformidades','r_alt_ayudas','r_alt_marcha','r_alt_limitaciones','r_alt_observaciones',
    'r_antecedentes_personales','r_antecedentes','r_antecedentes_familiares','r_antecedentes_quirurgicos','r_medicacion','r_motivo',
    'r_pa','r_fc','r_spo2'].forEach(id=>{
@@ -1406,8 +1446,10 @@ function normalizarTextoClinico(valor){
 }
 function obtenerEscalasRecomendadas(){
   const med = document.getElementById('r_diagnostico_medico');
+  const medDesc = document.getElementById('r_cie10_descripcion');
   const fis = document.getElementById('r_diagnostico');
-  const texto = normalizarTextoClinico(`${med?med.value:''} ${fis?fis.value:''}`);
+  const cifResumen = document.getElementById('r_cif_resumen');
+  const texto = normalizarTextoClinico(`${med?med.value:''} ${medDesc?medDesc.value:''} ${fis?fis.value:''} ${cifResumen?cifResumen.value:''}`);
   const sugeridas = [];
 
   // Las reglas por patología tienen prioridad clínica.
@@ -1433,8 +1475,10 @@ function mostrarEscalasRecomendadas(){
   if(!cont) return;
   const sugeridas = obtenerEscalasRecomendadas();
   const med = document.getElementById('r_diagnostico_medico');
+  const medDesc = document.getElementById('r_cie10_descripcion');
   const fis = document.getElementById('r_diagnostico');
-  const hayTexto = Boolean(`${med?med.value:''} ${fis?fis.value:''}`.trim());
+  const cifResumen = document.getElementById('r_cif_resumen');
+  const hayTexto = Boolean(`${med?med.value:''} ${medDesc?medDesc.value:''} ${fis?fis.value:''} ${cifResumen?cifResumen.value:''}`.trim());
 
   // Obliga a recalcular la ruta la próxima vez que se abra el módulo de Escalas.
   firmaEscalasAuto = '';
@@ -1488,8 +1532,14 @@ function guardarRegistro(){
     perdida_peso_detalle: document.getElementById('r_perdida_peso_detalle').value,
     // 5-7. Diagnósticos y motivo
     diagnostico_medico: document.getElementById('r_diagnostico_medico').value,
+    cie10_codigo: document.getElementById('r_cie10_codigo').value.trim().toUpperCase(),
+    cie10_descripcion: document.getElementById('r_cie10_descripcion').value,
     motivo: document.getElementById('r_motivo').value,
     diagnostico: document.getElementById('r_diagnostico').value,
+    cif_funciones: document.getElementById('r_cif_funciones').value,
+    cif_actividad: document.getElementById('r_cif_actividad').value,
+    cif_ambientales: document.getElementById('r_cif_ambientales').value,
+    cif_resumen: document.getElementById('r_cif_resumen').value,
     // Alteraciones clínicas
     alteraciones_posturales: document.getElementById('r_alt_posturales').value,
     edema: document.getElementById('r_alt_edema').value,
@@ -1680,8 +1730,14 @@ function cargarPacienteEnFormulario(id){
   setVal('r_perdida_peso_detalle', p.perdida_peso_detalle);
   // 5-7. Diagnósticos y motivo
   setVal('r_diagnostico_medico', p.diagnostico_medico);
+  setVal('r_cie10_codigo', p.cie10_codigo);
+  setVal('r_cie10_descripcion', p.cie10_descripcion);
   setVal('r_motivo', p.motivo);
   setVal('r_diagnostico', p.diagnostico);
+  setVal('r_cif_funciones', p.cif_funciones);
+  setVal('r_cif_actividad', p.cif_actividad);
+  setVal('r_cif_ambientales', p.cif_ambientales);
+  setVal('r_cif_resumen', p.cif_resumen);
   setVal('r_alt_posturales', p.alteraciones_posturales);
   setVal('r_alt_edema', p.edema);
   setVal('r_alt_deformidades', p.deformidades);
@@ -3214,6 +3270,26 @@ function generarSeccionesInformeNarrativo(rec){
         escalas=rec.escalas||{};
   const secciones=[];
 
+  const diagnosticos=[];
+  if(p.diagnostico_medico || p.cie10_codigo || p.cie10_descripcion){
+    const cieCodigo=textoInformePlano(p.cie10_codigo);
+    const cieDescripcion=textoInformePlano(p.cie10_descripcion||p.diagnostico_medico);
+    const cieDetalle=[cieCodigo,cieDescripcion].filter(Boolean).join(' — ');
+    diagnosticos.push(`Diagnóstico médico (CIE-10): ${cieDetalle||'sin codificación registrada'}.`);
+  }
+  if(p.diagnostico || p.cif_funciones || p.cif_actividad || p.cif_ambientales || p.cif_resumen){
+    const partesCif=[];
+    if(p.diagnostico) partesCif.push(`formulación fisioterapéutica: ${sinPuntoFinalInforme(p.diagnostico)}`);
+    if(p.cif_funciones) partesCif.push(`funciones/estructuras corporales (b/s): ${sinPuntoFinalInforme(p.cif_funciones)}`);
+    if(p.cif_actividad) partesCif.push(`actividad y participación (d): ${sinPuntoFinalInforme(p.cif_actividad)}`);
+    if(p.cif_ambientales) partesCif.push(`factores ambientales (e): ${sinPuntoFinalInforme(p.cif_ambientales)}`);
+    if(p.cif_resumen) partesCif.push(`síntesis/calificadores: ${sinPuntoFinalInforme(p.cif_resumen)}`);
+    diagnosticos.push(`Diagnóstico fisioterapéutico (CIF): ${partesCif.join('; ')}.`);
+  }
+  if(diagnosticos.length){
+    secciones.push({titulo:'Clasificación diagnóstica CIE-10 y CIF',parrafos:diagnosticos});
+  }
+
   const resultadosEscalas=[];
   SCALES.forEach(sc=>{
     const r=escalas[sc.id];
@@ -3307,9 +3383,15 @@ function generarSeccionesInformeNarrativo(rec){
   const recomendaciones=listaComoOracionInforme(plan.recomendaciones,'Las recomendaciones complementarias incluyen ');
   if(objetivos) planParrafos.push(objetivos);
   if(intervenciones) planParrafos.push(intervenciones);
-  planParrafos.push(`La frecuencia sugerida es ${minusculaInicialInforme(plan.frecuencia)} La duración estimada es ${minusculaInicialInforme(plan.duracion)}`);
+  planParrafos.push(`Frecuencia (F): ${plan.frecuencia}`);
+  planParrafos.push(`Intensidad (I): ${plan.intensidad}`);
+  planParrafos.push(`Tiempo (T): ${plan.tiempo}`);
+  planParrafos.push(`Tipo (T): ${plan.tipo}`);
+  planParrafos.push(`Volumen (V): ${plan.volumen}`);
+  planParrafos.push(`Progresión (P): ${plan.progresion}`);
+  planParrafos.push(`Duración global estimada del programa: ${plan.duracion}`);
   if(recomendaciones) planParrafos.push(recomendaciones);
-  secciones.push({titulo:'Plan de intervención fisioterapéutica',parrafos:planParrafos});
+  secciones.push({titulo:'Plan de intervención fisioterapéutica · Dosificación FITT-VP',parrafos:planParrafos});
 
   const conclusiones=buildConclusionesHTML(rec).split(/\n\s*\n/).filter(Boolean);
   secciones.push({titulo:'Conclusiones y recomendaciones fisioterapéuticas',parrafos:conclusiones});
@@ -3525,23 +3607,45 @@ function evaluarPlanIntervencion(rec){
 
   const uniq = arr => Array.from(new Set(arr));
 
-  let frecuencia, duracion;
+  let frecuencia, intensidad, tiempo, volumen, progresion, duracion;
   if(riesgoCaidasAlto || fragil || dependenciaSevera){
-    frecuencia = '3 sesiones por semana (valorar una sesión adicional domiciliaria supervisada).';
+    frecuencia = '3 sesiones por semana, con posibilidad de una sesión domiciliaria adicional supervisada según tolerancia.';
+    intensidad = 'Baja a moderada e individualizada; priorizar ejecución segura, control de síntomas y respuesta de signos vitales. Como referencia de esfuerzo percibido, mantener un rango aproximado de 2 a 4 sobre 10 mientras se consolida la tolerancia.';
+    tiempo = '30 a 45 minutos por sesión, pudiendo fraccionarse en bloques con pausas de recuperación.';
+    volumen = 'Aproximadamente 90 a 135 minutos semanales de trabajo terapéutico estructurado, ajustados a la tolerancia y al nivel de asistencia requerido.';
+    progresion = 'Progresar de forma conservadora, modificando una variable a la vez (duración, repeticiones, complejidad o intensidad) y reevaluando funcionalmente cada 4 semanas.';
     duracion = '12 semanas, con reevaluación funcional cada 4 semanas.';
   } else if(riesgoCaidasModerado || prefragil || debilidadMMII || dependenciaFuncional){
     frecuencia = '3 sesiones por semana.';
+    intensidad = 'Moderada e individualizada según tolerancia y respuesta clínica; como referencia de esfuerzo percibido, un rango aproximado de 3 a 5 sobre 10, reduciéndolo cuando exista fatiga o inestabilidad.';
+    tiempo = '40 a 50 minutos por sesión, con pausas según necesidad.';
+    volumen = 'Aproximadamente 120 a 150 minutos semanales de trabajo terapéutico estructurado, combinando los componentes funcionales prioritarios.';
+    progresion = 'Incrementar gradualmente duración, repeticiones, resistencia o complejidad cuando la técnica y la respuesta clínica sean estables; reevaluar al finalizar el ciclo o antes si cambia el estado funcional.';
     duracion = '8 semanas, con reevaluación funcional al finalizar el proceso.';
   } else {
     frecuencia = '2 a 3 sesiones por semana.';
+    intensidad = 'Moderada e individualizada, ajustada a la capacidad funcional, tolerancia al esfuerzo y objetivos del paciente.';
+    tiempo = '45 a 60 minutos por sesión.';
+    volumen = 'Aproximadamente 90 a 180 minutos semanales de trabajo terapéutico estructurado, según se realicen 2 o 3 sesiones.';
+    progresion = 'Aumentar progresivamente el volumen o la dificultad de las tareas manteniendo calidad de movimiento y buena tolerancia; reevaluar al finalizar el ciclo.';
     duracion = '6 semanas, con reevaluación funcional posterior.';
   }
+
+  const tiposFitt=[];
+  if(riesgoCaidasAlto || riesgoCaidasModerado) tiposFitt.push('equilibrio y prevención de caídas');
+  if(debilidadMMII) tiposFitt.push('fortalecimiento progresivo de miembros inferiores');
+  if(dependenciaFuncional) tiposFitt.push('entrenamiento funcional orientado a transferencias, marcha y AVD');
+  else tiposFitt.push('reeducación de la marcha');
+  if(fragil || prefragil) tiposFitt.push('programa multicomponente');
+  if(capacidadBaja || capacidadModerada || capacidadBuena) tiposFitt.push('entrenamiento aeróbico adaptado a la capacidad registrada');
+  tiposFitt.push('educación terapéutica y ejercicio domiciliario supervisado/progresivo');
+  const tipo = uniq(tiposFitt).join(', ')+'.';
 
   return {
     objetivos: uniq(objetivos),
     intervenciones: uniq(intervenciones),
     recomendaciones: uniq(recomendaciones),
-    frecuencia, duracion
+    frecuencia, intensidad, tiempo, tipo, volumen, progresion, duracion
   };
 }
 function generarPlanIntervencion(){
@@ -3555,7 +3659,13 @@ function buildPlanIntervencionHTML(rec){
   const recomendaciones=listaComoOracionInforme(plan.recomendaciones,'Las recomendaciones complementarias incluyen ');
   if(objetivos) parrafos.push(objetivos);
   if(intervenciones) parrafos.push(intervenciones);
-  parrafos.push(`La frecuencia sugerida es ${minusculaInicialInforme(plan.frecuencia)} La duración estimada es ${minusculaInicialInforme(plan.duracion)}`);
+  parrafos.push(`Frecuencia (F): ${plan.frecuencia}`);
+  parrafos.push(`Intensidad (I): ${plan.intensidad}`);
+  parrafos.push(`Tiempo (T): ${plan.tiempo}`);
+  parrafos.push(`Tipo (T): ${plan.tipo}`);
+  parrafos.push(`Volumen (V): ${plan.volumen}`);
+  parrafos.push(`Progresión (P): ${plan.progresion}`);
+  parrafos.push(`Duración global estimada del programa: ${plan.duracion}`);
   if(recomendaciones) parrafos.push(recomendaciones);
   return `<div style="font-size:14px;line-height:1.75;">${parrafos.map(parrafo=>`<p style="margin:0 0 12px;text-align:justify;">${escapeHtml(parrafo)}</p>`).join('')}</div>`;
 }
